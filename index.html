@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tarot Journal - 個人塔羅日誌</title>
+    
+    <!-- 引入字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- 引入匯出 PDF 庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- 引入 PDF.js 用於讀取上傳的 PDF 檔案 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <!-- 引入 Chart.js 用於繪製統計圖表 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* =========================================
+           1. CSS Variables & Theme Definition
+           ========================================= */
+        :root {
+            --bg-main: #050505;
+            --bg-panel: #0d0d0d;
+            --bg-panel-light: #141414;
+            --bg-input: #111111;
+            --bg-bubble: #1a1a1a;
+            --accent-primary: #D4AF37; 
+            --accent-primary-hover: #AA8C2C;
+            --accent-gold: #D4AF37;
+            --text-primary: #E8E4D9; 
+            --text-secondary: #A39B8B;
+            --text-muted: #666666;
+            --border-color: rgba(212, 175, 55, 0.25);
+            --card-back: #0a0a0a;
+            --success: #D4AF37;
+            --danger: #ef4444;
+        }
+
+        /* =========================================
+           2. Base Styles, Resets & Typography
+           ========================================= */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 50% 0%, #151515 0%, #050505 80%);
+        }
+
+        h1, h2, h3, h4, .brand-title, .section-header, .panel-title, .draw-header-title {
+            font-family: 'Cinzel', 'Noto Sans TC', serif;
+            letter-spacing: 1px;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(212, 175, 55, 0.5); }
+
+        /* =========================================
+           3. Core Layout (Sidebar & Main Content)
+           ========================================= */
+        .sidebar {
+            width: 240px;
+            background-color: #030303;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .main-content {
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            overflow-y: auto; /* 更平滑的捲動 */
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+        }
+
+        .view-section {
+            display: none; 
+            padding: 30px 40px; 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            width: 100%; 
+            animation: fadeIn 0.4s ease forwards;
+        }
+        .view-section.active { display: block; }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        .section-header { 
+            font-size: 1.8rem; 
+            font-weight: 600; 
+            margin-top: 0; 
+            margin-bottom: 30px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            color: var(--accent-primary); 
+        }
+
+        /* =========================================
+           4. Sidebar Components
+           ========================================= */
+        .brand-header {
+            padding: 0 24px 30px;
+            display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        .brand-icon { color: var(--accent-gold); font-size: 1.8rem; }
+        .brand-title { font-weight: 600; font-size: 1.2rem; line-height: 1.2; color: var(--accent-primary); }
+        .brand-subtitle { font-size: 0.65rem; color: var(--text-secondary); letter-spacing: 2px; }
+
+        .menu-group { margin-bottom: 24px; }
+        .menu-title { padding: 0 24px; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; letter-spacing: 1px; }
+        
+        .menu-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .menu-item:hover { color: var(--text-primary); background: rgba(212, 175, 55, 0.05); }
+        .menu-item.active { color: var(--accent-gold); background: rgba(212, 175, 55, 0.1); border-right: 3px solid var(--accent-gold); }
+        .menu-item i { font-style: normal; font-size: 1.1rem; width: 20px; text-align: center; }
+        
+        .badge-new { background: var(--accent-primary); color: #000; font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; margin-left: auto; font-weight: bold; }
+
+        .user-profile {
+            margin-top: auto; padding: 20px 24px 0; border-top: 1px solid var(--border-color);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .user-avatar { width: 36px; height: 36px; background: var(--accent-primary); color: #000; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-family: 'Cinzel', serif;}
+
+        /* =========================================
+           5. View: Dashboard & Shared Styles
+           ========================================= */
+        .intro-banner {
+            background: linear-gradient(to right, rgba(212, 175, 55, 0.05), transparent);
+            border-left: 4px solid var(--accent-gold);
+            padding: 20px 24px;
+            border-radius: 4px 8px 8px 4px;
+            margin-bottom: 30px;
+        }
+
+        .dash-hero-card {
+            background: linear-gradient(135deg, #111, #050505);
+            border: 1px solid var(--accent-gold); 
+            border-radius: 0px; 
+            padding: 40px; display: flex; gap: 40px; margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        .dash-hero-card::before {
+            content: ''; position: absolute; top: 6px; left: 6px; right: 6px; bottom: 6px;
+            border: 1px solid rgba(212, 175, 55, 0.2); pointer-events: none;
+        }
+
+        .dash-hero-image {
+            width: 160px; height: 260px; background: var(--bg-main); border: 2px solid var(--accent-gold); border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 5rem;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
+            position: relative;
+            z-index: 2;
+        }
+        .dash-hero-content { z-index: 2; flex: 1;}
+        .dash-hero-content h2 { font-size: 2.5rem; color: var(--accent-gold); margin-bottom: 10px; }
+        .dash-hero-content .subtitle { color: var(--text-secondary); margin-bottom: 20px; font-family: 'Cinzel', serif; letter-spacing: 1px; }
+        .dash-hero-desc { line-height: 1.8; color: #ccc; margin-top: 20px; }
+        
+        .tag-pill { background: rgba(212, 175, 55, 0.1); border: 1px solid rgba(212, 175, 55, 0.3); color: var(--accent-primary); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-right: 8px; display: inline-block; margin-bottom: 8px; }
+        
+        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; }
+        .panel-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 24px; position: relative;}
+        .panel-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: var(--accent-gold); }
+        
+        .guidance-list { display: flex; flex-direction: column; gap: 16px; }
+        .guidance-item { display: flex; gap: 12px; }
+        .guidance-icon { width: 32px; height: 32px; border-radius: 4px; background: rgba(212, 175, 55, 0.1); color: var(--accent-primary); display: flex; justify-content: center; align-items: center; flex-shrink: 0; border: 1px solid rgba(212, 175, 55, 0.3);}
+        .guidance-text h4 { font-size: 0.95rem; margin-bottom: 4px; color: #ddd;}
+        .guidance-text p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+
+        .mood-selector { display: flex; gap: 12px; margin-bottom: 20px; }
+        .mood-btn { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 4px; padding: 16px 0; text-align: center; cursor: pointer; transition: 0.2s; }
+        .mood-btn:hover { background: rgba(212, 175, 55, 0.05); }
+        .mood-btn.active { background: rgba(212, 175, 55, 0.15); border-color: var(--accent-primary); color: var(--accent-primary); }
+        .mood-btn i { font-size: 1.5rem; display: block; margin-bottom: 8px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .stat-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+        .stat-icon { width: 40px; height: 40px; border-radius: 4px; background: rgba(212, 175, 55, 0.1); color: var(--accent-primary); border: 1px solid rgba(212, 175, 55, 0.3); display: flex; justify-content: center; align-items: center; margin-bottom: 16px; font-size: 1.2rem; }
+        .stat-value { font-size: 2.2rem; font-family: 'Cinzel', serif; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); }
+        .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
+
+        /* =========================================
+           6. History, Diary & Chart Styles
+           ========================================= */
+        .history-list { display: flex; flex-direction: column; gap: 16px; }
+        .history-item { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; position: relative;}
+        .history-item:hover { border-color: var(--accent-primary); background: #111; }
+        
+        .hist-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .hist-header-left { display: flex; align-items: center; gap: 15px; }
+        .hist-header-right { display: flex; gap: 10px; z-index: 2; }
+        
+        .hist-date { color: var(--accent-gold); font-size: 0.9rem; font-family: 'Cinzel', serif;}
+        .hist-reader { background: rgba(212, 175, 55, 0.1); color: var(--accent-primary); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(212, 175, 55, 0.2);}
+        .hist-question { font-size: 1.1rem; font-weight: 500; margin-bottom: 12px; color: #eee;}
+        .hist-cards { display: flex; gap: 8px; flex-wrap: wrap; }
+        .hist-card-tag { background: rgba(212, 175, 55, 0.1); color: #ddd; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; border: 1px solid rgba(212, 175, 55, 0.3); }
+        
+        .btn-delete-hist { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: 0.2s;}
+        .btn-delete-hist:hover { background: rgba(239, 68, 68, 0.2); }
+        
+        .btn-export-hist { background: rgba(212, 175, 55, 0.1); color: var(--accent-primary); border: 1px solid rgba(212, 175, 55, 0.3); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: 0.2s;}
+        .btn-export-hist:hover { background: rgba(212, 175, 55, 0.2); }
+
+        .chart-container-box {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        /* =========================================
+           7. View: Dictionary Styles (包含置頂吸附)
+           ========================================= */
+        #view-dictionary { padding: 0 !important; }
+        .dict-sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 4;
+            background: rgba(5, 5, 5, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px 40px 20px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+        }
+        .dict-content { padding: 20px 40px 60px; }
+        
+        .suit-section { margin-bottom: 40px; }
+        .suit-header {
+            font-family: 'Cinzel', 'Noto Sans TC', serif;
+            color: var(--text-primary);
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .dict-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px; }
+        .dict-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; align-items: center; padding: 20px 10px; cursor: pointer; transition: 0.3s; text-align: center; }
+        .dict-card:hover { transform: translateY(-5px); border-color: var(--accent-gold); box-shadow: 0 5px 15px rgba(212, 175, 55, 0.15); background: #111;}
+        .dict-icon { font-size: 3rem; margin-bottom: 12px; }
+        .dict-name { font-weight: 600; font-size: 1rem; font-family: 'Cinzel', serif; color: var(--accent-primary);}
+        .dict-type { font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; }
+
+        /* =========================================
+           8. View: AI Chat Area Styles
+           ========================================= */
+        .layout-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; height: calc(100vh - 200px); min-height: 500px; }
+        .panel { background-color: var(--bg-panel); border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; overflow: hidden; position: relative;}
+        
+        .panel-header { padding: 20px 24px 10px; font-size: 0.9rem; color: var(--accent-primary); font-family: 'Cinzel', serif; border-bottom: 1px solid rgba(212, 175, 55, 0.1); margin-bottom: 10px;}
+        
+        .reader-list { flex: 1; overflow-y: auto; padding: 0 12px 20px; }
+        .reader-item { display: flex; align-items: center; padding: 4px 12px; cursor: pointer; margin-bottom: 8px; transition: opacity 0.2s; background: transparent; border: none; }
+        .reader-item:hover { opacity: 0.8; }
+        
+        .radio-circle { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #666; margin-right: 14px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; transition: all 0.2s; }
+        .reader-item.active .radio-circle { border-color: #ddd; }
+        .reader-item.active .radio-circle::after { content: ''; width: 6px; height: 6px; background-color: #ddd; border-radius: 50%; }
+
+        .reader-pill { display: flex; align-items: center; background-color: #121212; padding: 10px 16px; border-radius: 20px; width: fit-content; }
+        .reader-name-text { color: #c9aa71; font-size: 0.95rem; white-space: nowrap; font-weight: 500; }
+        .reader-separator { color: #444; margin: 0 12px; font-size: 0.9rem; }
+        .reader-desc-text { color: #888; font-size: 0.85rem; }
+
+        /* 頭像強制不變形設定 */
+        .avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #222, #000); border: 1px solid var(--accent-primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; margin-right: 16px; flex-shrink: 0; }
+        
+        .chat-container { display: flex; flex-direction: column; height: 100%; }
+        .chat-header { display: flex; align-items: center; padding: 20px 30px; border-bottom: 1px solid var(--border-color); flex-shrink: 0;}
+        .chat-messages { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; -webkit-overflow-scrolling: touch;}
+        .message { display: flex; gap: 16px; max-width: 85%; }
+        .message.ai { align-self: flex-start; }
+        .message.user { align-self: flex-end; flex-direction: row-reverse; }
+        .bubble { background-color: var(--bg-bubble); border: 1px solid rgba(212, 175, 55, 0.2); padding: 16px 20px; border-radius: 4px 20px 20px 20px; line-height: 1.6; font-size: 0.95rem; color: #ddd;}
+        .message.user .bubble { background-color: rgba(212, 175, 55, 0.15); border: 1px solid var(--accent-primary); color: #fff; border-radius: 20px 4px 20px 20px; }
+        
+        .chat-input-wrapper { padding: 0 30px 30px; flex-shrink: 0;}
+        .input-box { background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; }
+        .input-box:focus-within { border-color: var(--accent-primary); }
+        textarea { background: transparent; border: none; color: var(--text-primary); font-size: 0.95rem; resize: none; width: 100%; outline: none; }
+        .input-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        .btn-send { width: 40px; height: 40px; border-radius: 50%; background-color: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted); display: flex; justify-content: center; align-items: center; cursor: not-allowed; transition: 0.3s; flex-shrink: 0;}
+        .btn-send.active { background-color: var(--accent-primary); border-color: var(--accent-primary); color: #000; cursor: pointer; font-weight: bold;}
+        .btn-send.active:hover { background-color: var(--accent-primary-hover); }
+        
+        /* =========================================
+           9. View: Spread Selection & Draw UI
+           ========================================= */
+        .spread-box-container {
+            position: relative; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px;
+            padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;
+            width: 100%; max-width: 600px; margin: 0 auto 30px; text-align: left; transition: border-color 0.3s;
+        }
+        .spread-box-container:hover { border-color: var(--accent-primary); }
+        .spread-box-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+        .spread-box-left { display: flex; align-items: flex-start; gap: 16px; pointer-events: none; flex: 1; padding-right: 15px; }
+        .spread-icon { width: 40px; height: 40px; border-radius: 4px; background: rgba(212, 175, 55, 0.1); border: 1px solid rgba(212, 175, 55, 0.3); color: var(--accent-primary); display: flex; justify-content: center; align-items: center; font-size: 1.2rem; flex-shrink: 0; }
+        .spread-title { font-weight: 600; font-size: 1.05rem; color: #fff; margin-bottom: 6px; }
+        .spread-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+        .spread-count { font-size: 0.95rem; color: var(--accent-primary); font-family: 'Cinzel', serif; flex-shrink: 0; padding-top: 4px; font-weight: bold;}
+
+        .spread-selectors { display: flex; gap: 12px; width: 100%; z-index: 5; position: relative; }
+        .spread-select-ui {
+            flex: 1; /* Takes equal space for both dropdowns */
+            background: rgba(0,0,0,0.6); border: 1px solid var(--border-color); color: var(--accent-primary);
+            padding: 10px 12px; border-radius: 6px; font-family: 'Noto Sans TC', sans-serif; font-size: 0.9rem;
+            cursor: pointer; outline: none; transition: 0.2s;
+        }
+        .spread-select-ui:hover { border-color: var(--accent-gold); background: #111; }
+        .spread-select-ui option { background: #111; color: #fff; }
+
+        .draw-toolbar { display: inline-flex; background: var(--bg-panel); border-radius: 30px; padding: 4px; border: 1px solid var(--border-color); margin-bottom: 40px; }
+        .draw-toolbar-btn { padding: 10px 24px; border-radius: 26px; border: none; background: transparent; color: var(--text-secondary); font-size: 0.9rem; transition: 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Noto Sans TC', serif; }
+        .draw-toolbar-btn.active { background: rgba(212, 175, 55, 0.15); color: var(--accent-primary); border: 1px solid rgba(212, 175, 55, 0.3); }
+
+        .draw-big-counter { font-size: 5.5rem; font-family: 'Cinzel', serif; color: var(--text-primary); line-height: 1; margin-bottom: 10px; }
+
+        .deck-wrapper { width: 100%; margin: 20px auto; padding: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .deck-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; width: 100%; max-width: 1200px; }
+        .card { width: 48px; height: 100px; background-color: var(--card-back); border: 1px solid var(--accent-primary); border-radius: 4px; position: relative; transition: 0.3s; cursor: pointer; box-shadow: -2px 0 8px rgba(0,0,0,0.8); background-image: repeating-linear-gradient(45deg, rgba(212, 175, 55, 0.05) 0px, rgba(212, 175, 55, 0.05) 2px, transparent 2px, transparent 6px); margin-left: -20px; }
+        .card:first-child { margin-left: 0; }
+        .card:hover { transform: translateY(-15px); z-index: 10; box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4); border-color: #fff;}
+        .card.drawn { transform: translateY(-50px) scale(1.1); opacity: 0; pointer-events: none; }
+        
+        .toggle-container { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 30px; font-size: 0.9rem; color: var(--text-secondary); }
+        .toggle-switch { width: 44px; height: 24px; background-color: var(--accent-primary); border-radius: 12px; position: relative; cursor: pointer; transition: 0.3s; border: 1px solid var(--accent-primary);}
+        .toggle-knob { width: 18px; height: 18px; background-color: #000; border-radius: 50%; position: absolute; top: 2px; left: 3px; transition: 0.3s; }
+        .toggle-switch.off { background-color: var(--bg-input); border-color: var(--border-color);}
+        .toggle-switch.off .toggle-knob { left: 21px; background-color: var(--text-secondary); }
+
+        .result-card { width: 110px; height: 190px; background: #000; border: 2px solid var(--accent-primary); border-radius: 4px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 2.5rem; box-shadow: 0 10px 20px rgba(0,0,0,0.5); margin: 0 10px;}
+        .result-card span { font-size: 0.8rem; margin-top: 10px; color: #fff; text-align: center; padding: 0 4px;}
+
+        .markdown-content p { margin-bottom: 1.2em; line-height: 1.8;}
+        .markdown-content strong { color: var(--accent-primary); font-weight: 600; font-family: 'Cinzel', serif; letter-spacing: 0.5px;}
+        .markdown-content ul { padding-left: 20px; margin-bottom: 1.2em; }
+        .markdown-content li { margin-bottom: 0.5em; }
+
+        /* Spread Intro specific styles */
+        .spread-intro-category { margin-bottom: 40px; }
+        .spread-intro-category h2 { color: var(--accent-gold); border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 10px; margin-bottom: 20px; font-size: 1.2rem;}
+        .spread-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 25px; transition: 0.3s;}
+        .spread-card:hover { border-color: var(--accent-primary); box-shadow: 0 5px 15px rgba(0,0,0,0.5); transform: translateY(-3px);}
+
+        /* =========================================
+           10. Modals & Buttons (Overlays)
+           ========================================= */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 100; display: none; justify-content: center; align-items: center; padding: 20px;}
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--bg-panel); border: 1px solid var(--accent-primary); border-radius: 8px; width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto; position: relative; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); -webkit-overflow-scrolling: touch;}
+        .btn-close { position: absolute; top: 20px; right: 20px; background: transparent; border: none; color: var(--accent-primary); font-size: 1.5rem; cursor: pointer; transition: 0.2s; z-index: 5;}
+        .btn-close:hover { color: #fff; transform: scale(1.1); }
+        .modal-body { line-height: 1.8; color: #ddd; }
+        .modal-body h3 { color: var(--accent-gold); margin: 25px 0 10px; font-size: 1.2rem; font-family: 'Cinzel', serif;}
+        
+        .primary-btn { background: var(--accent-primary); color: #000; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-family: 'Cinzel', 'Noto Sans TC', serif; font-weight: 600; transition: 0.2s; box-shadow: 0 2px 10px rgba(212, 175, 55, 0.2);}
+        .primary-btn:hover { background: var(--accent-primary-hover); transform: translateY(-2px); }
+        .outline-btn { background: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary); padding: 8px 16px; border-radius: 4px; cursor: pointer; transition: 0.2s; font-family: 'Cinzel', 'Noto Sans TC', serif;}
+        .outline-btn:hover { background: rgba(212, 175, 55, 0.1); color: #fff; }
+
+        /* =========================================
+           11. RWD: Responsive Design Styles (針對手機與平板)
+           ========================================= */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            
+            /* 1. 底部水平滑動導航列 */
+            .sidebar {
+                width: 100%; height: 75px; flex-direction: row; padding: 0;
+                position: fixed; bottom: 0; left: 0; border-right: none; border-top: 1px solid var(--border-color);
+                z-index: 50; background-color: rgba(5, 5, 5, 0.95); backdrop-filter: blur(10px);
+                overflow-x: auto; /* 啟用水平滑動 */
+                -webkit-overflow-scrolling: touch;
+                justify-content: flex-start;
+                align-items: center;
+            }
+            .sidebar::-webkit-scrollbar { display: none; } /* 隱藏滾動條 */
+            .brand-header, .user-profile, .menu-title { display: none; }
+            .menu-group { margin: 0; display: flex; width: auto; flex-shrink: 0; padding: 0 5px; }
+            .menu-group:last-child { display: flex; } /* 顯示探索選單 */
+            .menu-item {
+                flex-direction: column; gap: 6px; padding: 8px 12px; font-size: 0.75rem;
+                justify-content: center; align-items: center; border: none !important; 
+                flex: 0 0 auto; min-width: 75px;
+            }
+            .menu-item.active { background: transparent; border-bottom: 2px solid var(--accent-gold) !important; color: var(--accent-gold); }
+            .menu-item i { font-size: 1.4rem; }
+            .badge-new { position: absolute; top: 4px; right: 10px; font-size: 0.55rem; padding: 2px 5px; transform: scale(0.9); }
+            
+            .main-content { margin-bottom: 75px; padding-bottom: 20px;} /* 預留底部空間給導航欄 */
+            .view-section { padding: 20px 15px; }
+
+            /* 儀表板 RWD */
+            .dash-hero-card { flex-direction: column; padding: 20px; gap: 20px; }
+            .dash-hero-image { width: 100%; height: 200px; }
+            .dash-grid { grid-template-columns: 1fr; gap: 20px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+
+            /* 2. AI 塔羅師聊天介面 RWD */
+            .layout-grid { display: flex; flex-direction: column; height: calc(100vh - 170px); min-height: 500px; gap: 15px; }
+            .panel:not(.chat-container) { height: auto; flex-shrink: 0; border: none; background: transparent; } /* 上方塔羅師選擇區 */
+            .panel.chat-container { flex: 1; min-height: 350px; overflow: hidden; border-radius: 12px; border: 1px solid var(--border-color); }
+            .panel-header { padding: 0 10px 10px; border-bottom: none; }
+            
+            /* 膠囊狀塔羅師水平選單 */
+            .reader-list { display: flex; flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 0 5px 10px; gap: 12px; -webkit-overflow-scrolling: touch; }
+            .reader-list::-webkit-scrollbar { display: none; }
+            .reader-item { 
+                flex-direction: row; align-items: center; padding: 6px 16px 6px 6px; 
+                background: rgba(255,255,255,0.03); border-radius: 30px; 
+                border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; margin: 0; width: auto;
+            }
+            .reader-item.active { background: rgba(212, 175, 55, 0.1); border-color: var(--border-color); }
+            .radio-circle { display: none; }
+            .reader-pill { padding: 0; background: none; display: flex; flex-direction: row; align-items: center; gap: 10px; }
+            .reader-pill > div { width: 40px !important; height: 40px !important; margin: 0 !important; }
+            .reader-name-text { font-size: 0.9rem; margin: 0; }
+            .reader-separator, .reader-desc-text { display: none; }
+
+            .chat-header { padding: 15px 20px; }
+            .chat-messages { padding: 20px 15px; }
+            .chat-input-wrapper { padding: 0 15px 15px; }
+            .message { max-width: 90%; }
+            .avatar { width: 40px; height: 40px; margin-right: 12px;}
+
+            /* 歷史紀錄與彈窗 RWD */
+            .hist-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .hist-header-right { width: 100%; justify-content: space-between; }
+            .modal-content { padding: 25px 20px; width: 95%; max-height: 90vh;}
+            .btn-close { top: 15px; right: 15px; }
+
+            /* 圖鑑與牌陣 RWD */
+            .dict-sticky-header { top: 0; padding: 20px 15px 15px; }
+            .dict-content { padding: 15px 15px 60px; }
+            .spread-box-container { flex-direction: column; gap: 15px; align-items: stretch; padding: 15px;}
+            .spread-selectors { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- =========================================
+         Sidebar Navigation (底部橫向滑動導覽)
+         ========================================= -->
+    <nav class="sidebar">
+        <div class="brand-header">
+            <div class="brand-icon">✧</div>
+            <div>
+                <div class="brand-title">Aethel Tarot</div>
+                <div class="brand-subtitle">UNLOCK YOUR DESTINY</div>
+            </div>
+        </div>
+
+        <div class="menu-group">
+            <div class="menu-title">Main Features</div>
+            <div class="menu-item active" data-target="view-dashboard" onclick="switchNav('view-dashboard', this)">
+                <i>⊞</i> 儀表板
+            </div>
+            <div class="menu-item" data-target="view-diary" onclick="switchNav('view-diary', this)">
+                <i>📖</i> 心情日記
+            </div>
+            <div class="menu-item" data-target="view-today-reading" onclick="switchNav('view-today-reading', this)">
+                <i>✧</i> 今日占卜 <span class="badge-new">NEW</span>
+            </div>
+            <div class="menu-item" data-target="view-history" onclick="switchNav('view-history', this)">
+                <i>📜</i> 占卜歷史
+            </div>
+            <!-- 新增占卜上傳功能 -->
+            <div class="menu-item" onclick="document.getElementById('pdf-upload-input').click();">
+                <i id="upload-icon">📥</i> 占卜上傳
+            </div>
+            <!-- 隱藏的檔案輸入框 -->
+            <input type="file" id="pdf-upload-input" accept="application/pdf" style="display: none;" onchange="handlePDFUpload(event)">
+            
+            <div class="menu-item" data-target="view-stats" onclick="switchNav('view-stats', this)">
+                <i>📊</i> 統計分析
+            </div>
+        </div>
+
+        <div class="menu-group">
+            <div class="menu-title">Exploration</div>
+            <div class="menu-item" data-target="view-dictionary" onclick="switchNav('view-dictionary', this)">
+                <i>🎴</i> 塔羅圖鑑
+            </div>
+            <div class="menu-item" data-target="view-spreads-intro" onclick="switchNav('view-spreads-intro', this)">
+                <i>▦</i> 牌陣介紹
+            </div>
+        </div>
+
+        <div class="user-profile">
+            <div class="user-avatar">M</div>
+            <div>
+                <div style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary);">Luna Seeker</div>
+                <div style="font-size: 0.75rem; color: var(--accent-gold); margin-bottom: 6px;">靈性探索者</div>
+                <div id="top-date" style="font-size: 0.7rem; color: var(--text-muted); font-family: 'Cinzel', serif; display: flex; align-items: center; gap: 4px;">🔔 載入中...</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- =========================================
+         Main Content Area
+         ========================================= -->
+    <main class="main-content">
+
+        <!-- --- View: Dashboard --- -->
+        <section id="view-dashboard" class="view-section active">
+            
+            <h1 class="section-header">⊞ 儀表板</h1>
+
+            <!-- 塔羅牌啟示介紹 Banner -->
+            <div class="intro-banner">
+                <h3 style="color: var(--accent-gold); margin-bottom: 8px; font-family: 'Cinzel', serif; font-size: 1.2rem;">塔羅的啟示與指引</h3>
+                <p style="color: #ccc; line-height: 1.6; font-size: 0.95rem;">塔羅牌並非宿命論的宣判，而是一面反映潛意識的鏡子。它幫助我們釐清當下的混亂，看見隱藏的盲點，並提供未來的可能性。每一次抽牌，平都是一次與內在自我的深度對話，讓我們能以更清明的智慧，做出掌握命運的選擇。</p>
+            </div>
+
+            <!-- 最新占卜展示 -->
+            <div class="dash-hero-card" id="dash-hero-container"></div>
+
+            <!-- AI 深度指引與心情 -->
+            <div class="dash-grid">
+                <div class="panel-card">
+                    <h3 class="panel-title">⚝ 深度指引</h3>
+                    <div class="guidance-list">
+                        <div class="guidance-item">
+                            <div class="guidance-icon">🎯</div>
+                            <div class="guidance-text">
+                                <h4>今日重點</h4>
+                                <p id="dash-focus">專注於內心平靜，避免被短期干擾分心。</p>
+                            </div>
+                        </div>
+                        <div class="guidance-item">
+                            <div class="guidance-icon">⚠️</div>
+                            <div class="guidance-text">
+                                <h4>注意事項</h4>
+                                <p id="dash-warning">保持腳踏實地，夢想需要行動來支撐。</p>
+                            </div>
+                        </div>
+                        <div class="guidance-item">
+                            <div class="guidance-icon">✨</div>
+                            <div class="guidance-text">
+                                <h4>建議行動</h4>
+                                <p id="dash-action">今晚花15分鐘寫下你希望達成的目標。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <h3 class="panel-title">☺ 心情記錄</h3>
+                    <div class="mood-selector" id="dash-mood-selector">
+                        <div class="mood-btn" onclick="setMood(this, 'dash-mood-selector')"><i>😆</i>開心</div>
+                        <div class="mood-btn active" onclick="setMood(this, 'dash-mood-selector')"><i>🙂</i>穩定</div>
+                        <div class="mood-btn" onclick="setMood(this, 'dash-mood-selector')"><i>😐</i>普通</div>
+                        <div class="mood-btn" onclick="setMood(this, 'dash-mood-selector')"><i>😔</i>低落</div>
+                        <div class="mood-btn" onclick="setMood(this, 'dash-mood-selector')"><i>😫</i>焦慮</div>
+                    </div>
+                    <div class="input-box" style="padding: 12px; background: rgba(0,0,0,0.5);">
+                        <textarea id="dash-mood-text" style="height: 40px; font-size: 0.85rem;" placeholder="今天有什麼感受想記錄？（選填）"></textarea>
+                        <div style="text-align: right; margin-top: 8px;">
+                            <button id="btn-save-dash-diary" class="outline-btn" style="padding: 4px 12px; font-size: 0.8rem;" onclick="saveDiaryFromDash()">儲存紀錄</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 統計摘要 -->
+            <h3 class="panel-title" style="margin-top: 10px;">📉 本月統計</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📚</div>
+                    <div class="stat-value" id="stat-total-reads">0</div>
+                    <div class="stat-label">總占卜次數</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-value" id="stat-cards-drawn">0</div>
+                    <div class="stat-label">累積抽牌數</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-value" style="font-size: 1.5rem; line-height: 1.3;" id="stat-freq-card">無</div>
+                    <div class="stat-label">最常出現牌</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">☺</div>
+                    <div class="stat-value" style="font-size: 1.5rem; line-height: 1.3;" id="stat-avg-mood">穩定</div>
+                    <div class="stat-label">平均心情指數</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- --- View: Mood Diary --- -->
+        <section id="view-diary" class="view-section">
+            <h1 class="section-header">📖 心情日記</h1>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">記錄每一天的情緒起伏，觀察內心宇宙的變化。</p>
+            <div class="history-list" id="diary-container"></div>
+        </section>
+
+        <!-- --- View: Today Reading --- -->
+        <section id="view-today-reading" class="view-section">
+            
+            <!-- Step 1: AI Chat & Question -->
+            <div id="step-choose" style="display: block;">
+                <h1 class="section-header">✧ 線上塔羅占卜</h1>
+                <div class="layout-grid">
+                    <!-- 左/上方：塔羅師列表 -->
+                    <div class="panel">
+                        <div class="panel-header">塔羅師列表</div>
+                        <div class="reader-list" id="ai-list-container"></div>
+                    </div>
+                    <!-- 右/下方：對話視窗 -->
+                    <div class="panel chat-container">
+                        <div class="chat-header">
+                            <div class="avatar" id="current-ai-avatar"></div>
+                            <div style="margin-left: 16px;">
+                                <div style="font-weight: 500; font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--accent-primary);" id="current-ai-name"></div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);" id="current-ai-tags"></div>
+                            </div>
+                        </div>
+                        <div class="chat-messages" id="chat-messages"></div>
+                        <div class="chat-input-wrapper">
+                            <div class="input-box">
+                                <textarea id="question-input" placeholder="慢慢說給我聽——每個細節都會在牌上現出來..." maxlength="300" oninput="updateInputState()"></textarea>
+                                <div class="input-footer">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);"><span id="char-current">0</span>/300</span>
+                                    <button class="btn-send" id="btn-send" onclick="goToDrawStep()" disabled>↑</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Draw Cards -->
+            <div id="step-draw" style="display: none; text-align: center; padding-top: 20px;">
+                <h1 class="draw-header-title" style="font-size: 2rem; margin-bottom: 30px; color: var(--text-primary);">抽取您的塔羅牌</h1>
+                
+                <!-- 牌陣選擇區塊 -->
+                <div class="spread-box-container">
+                    <div class="spread-box-header">
+                        <div class="spread-box-left">
+                            <div class="spread-icon">✦</div>
+                            <div>
+                                <div class="spread-title" id="display-spread-name">單牌指引</div>
+                                <div class="spread-desc" id="display-spread-desc">快速獲取單一問題的明確指引</div>
+                            </div>
+                        </div>
+                        <div class="spread-count" id="display-spread-count">1 張牌</div>
+                    </div>
+                    <div class="spread-selectors">
+                        <select id="category-select" class="spread-select-ui" onchange="updateSpreadOptions()"></select>
+                        <select id="spread-select" class="spread-select-ui" onchange="changeSpread(this)"></select>
+                    </div>
+                </div>
+
+                <!-- 工具列區塊 -->
+                <div class="draw-toolbar">
+                    <div class="draw-toolbar-btn active" style="cursor: default;"><i>▦</i> 線上抽牌</div>
+                    <div class="draw-toolbar-btn" style="padding: 4px 16px;">
+                        <i>◨</i> 
+                        <select id="deck-type-select" onchange="changeDeckType()" style="background: transparent; border: none; color: inherit; padding: 6px; outline: none; cursor:pointer; font-family: 'Noto Sans TC', serif;">
+                            <option value="all" style="background: var(--bg-panel);">全部牌組 (78張)</option>
+                            <option value="major" style="background: var(--bg-panel);">大阿爾卡那 (22張)</option>
+                            <option value="minor" style="background: var(--bg-panel);">小阿爾卡那 (56張)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="draw-big-counter" id="draw-counter">1</div>
+                    <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">張待抽取</div>
+                </div>
+                
+                <!-- 牌堆區塊 -->
+                <div class="deck-wrapper" id="deck-wrapper">
+                    <!-- JavaScript 將在此動態注入 .deck-row 以及卡牌 -->
+                </div>
+
+                <!-- 展示開關 -->
+                <div class="toggle-container" onclick="toggleImmediateShow()">
+                    <span>抽牌後立即展示</span>
+                    <div class="toggle-switch off" id="show-toggle">
+                        <div class="toggle-knob"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Result -->
+            <div id="step-result" style="display: none; text-align: center;">
+                <h1 class="draw-header-title" style="font-size: 1.8rem; color: var(--accent-primary);">您的牌陣已就緒</h1>
+                <div style="display: flex; justify-content: center; flex-wrap: wrap; margin: 40px 0; gap: 15px;" id="result-cards-container"></div>
+                
+                <div class="panel" style="max-width: 800px; margin: 0 auto; padding: 30px; text-align: left; border-radius: 12px;">
+                    <div id="reading-text" class="markdown-content"></div>
+                </div>
+                <button class="primary-btn" style="margin-top: 30px;" onclick="resetReadingFlow()">Begin New Journey</button>
+            </div>
+        </section>
+
+        <!-- --- View: History --- -->
+        <section id="view-history" class="view-section">
+            <h1 class="section-header">📜 占卜歷史</h1>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">您過去的所有占卜紀錄皆安全地保存在此設備中。</p>
+            <div class="history-list" id="history-container"></div>
+        </section>
+
+        <!-- --- View: Stats --- -->
+        <section id="view-stats" class="view-section">
+            <h1 class="section-header">📊 統計分析</h1>
+            
+            <div class="dash-grid">
+                <div class="panel-card" style="text-align: center; padding: 30px 20px;">
+                    <div style="font-size: 3.5rem; color: var(--accent-primary); font-family: 'Cinzel', serif; font-weight: 700;" id="full-stat-total">0</div>
+                    <div style="color: var(--text-secondary); margin-bottom: 10px;">總占卜次數</div>
+                </div>
+                <div class="panel-card" style="text-align: center; padding: 30px 20px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 5px;">🌟</div>
+                    <div style="font-size: 1.5rem; font-weight: 500; font-family: 'Cinzel', serif; color: var(--accent-gold); margin-bottom: 5px;" id="full-stat-freq">無資料</div>
+                    <div style="color: var(--text-secondary);">與您最有緣分的牌</div>
+                </div>
+            </div>
+
+            <!-- 圖表區塊 -->
+            <div class="dash-grid" style="grid-template-columns: 1fr; gap: 40px;">
+                <!-- 心情統計折線圖 -->
+                <div class="panel-card">
+                    <h3 class="panel-title">☺ 近期心情走勢</h3>
+                    <div class="chart-container-box">
+                        <canvas id="moodLineChart"></canvas>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <!-- 問題類型圓餅圖 -->
+                    <div class="panel-card">
+                        <h3 class="panel-title">🤔 占卜問題類型</h3>
+                        <div class="chart-container-box" style="height: 250px;">
+                            <canvas id="categoryPieChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- 常用牌陣長條圖 -->
+                    <div class="panel-card">
+                        <h3 class="panel-title">🎴 常用牌型統計</h3>
+                        <div class="chart-container-box" style="height: 250px;">
+                            <canvas id="spreadBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- --- View: Dictionary --- -->
+        <section id="view-dictionary" class="view-section">
+            <div class="dict-sticky-header">
+                <h1 class="section-header">🎴 塔羅圖鑑</h1>
+                <div style="display: flex; gap: 10px;">
+                    <button class="outline-btn" id="btn-dict-major" onclick="renderDictionary('major')">大阿爾卡那</button>
+                    <button class="outline-btn" id="btn-dict-minor" onclick="renderDictionary('minor')">小阿爾卡那</button>
+                </div>
+            </div>
+            <div class="dict-content" id="dict-content-area">
+                <!-- JavaScript 將動態生成卡牌網格或分類區塊 -->
+            </div>
+        </section>
+
+        <!-- --- View: Spreads Intro (牌陣介紹頁面 - 優化為卡片網格) --- -->
+        <section id="view-spreads-intro" class="view-section">
+            <h1 class="section-header">▦ 占卜牌陣介紹</h1>
+            <p style="color: var(--text-muted); margin-bottom: 10px; line-height: 1.8;">了解各式牌陣的佈局與邏輯，能幫助您更精準地向宇宙提問。點擊下方卡片可閱覽各牌陣的詳細資訊。</p>
+            <p style="color: var(--accent-gold); margin-bottom: 30px; font-size: 0.9rem; border-left: 2px solid var(--accent-gold); padding-left: 10px;"><em>* 溫馨提示：解讀時請結合提問情境，切勿生搬硬套。</em></p>
+            
+            <div id="spreads-intro-container">
+                <!-- 內容由 JS 動態生成 (格狀排列) -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =========================================
+         Modals (Popup Overlays)
+         ========================================= -->
+    
+    <!-- Info Modal (Dictionary, History & Spreads Details) -->
+    <div class="modal-overlay" id="detail-modal" onclick="closeModal('detail-modal', event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="btn-close" onclick="closeModal('detail-modal', event)">&times;</button>
+            <div id="modal-content-body" class="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Edit Diary Modal -->
+    <div class="modal-overlay" id="edit-diary-modal" onclick="closeModal('edit-diary-modal', event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="btn-close" onclick="closeModal('edit-diary-modal', event)">&times;</button>
+            <h3 style="color: var(--accent-gold); margin-bottom: 20px; font-family: 'Cinzel', serif;">編輯心情紀錄</h3>
+            <div class="mood-selector" id="edit-mood-selector">
+                <div class="mood-btn" onclick="setMood(this, 'edit-mood-selector')"><i>😆</i>開心</div>
+                <div class="mood-btn" onclick="setMood(this, 'edit-mood-selector')"><i>🙂</i>穩定</div>
+                <div class="mood-btn" onclick="setMood(this, 'edit-mood-selector')"><i>😐</i>普通</div>
+                <div class="mood-btn" onclick="setMood(this, 'edit-mood-selector')"><i>😔</i>低落</div>
+                <div class="mood-btn" onclick="setMood(this, 'edit-mood-selector')"><i>😫</i>焦慮</div>
+            </div>
+            <div class="input-box" style="padding: 12px; background: rgba(0,0,0,0.5); margin-bottom: 20px;">
+                <textarea id="edit-mood-text" style="height: 100px; font-size: 0.9rem;" placeholder="寫下你的感受..."></textarea>
+            </div>
+            <div style="text-align: right;">
+                <button class="primary-btn" onclick="saveEditedDiary()">儲存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal (Shared by History & Diary) -->
+    <div class="modal-overlay" id="confirm-modal" onclick="closeModal('confirm-modal', event)">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;" onclick="event.stopPropagation()">
+            <h3 style="margin-bottom: 20px; color: var(--accent-gold); font-size: 1.3rem;">確認刪除</h3>
+            <p style="margin-bottom: 30px; color: var(--text-secondary);">確定要刪除這筆紀錄嗎？<br>此動作無法復原。</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="outline-btn" onclick="closeModal('confirm-modal', event)">取消</button>
+                <button id="btn-confirm-delete" class="primary-btn" style="background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: var(--danger); box-shadow: none;">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================
+         JavaScript Logic
+         ========================================= -->
+    <script>
+        // ==========================================
+        // 0. Image Base URL Configuration
+        // ==========================================
+        const IMAGE_BASE_URL = "https://raw.githubusercontent.com/steve0325159357/Tarrot/main/images/";
+
+        // ==========================================
+        // 1. Core Tarot Dictionary & Spreads Data
+        // ==========================================
+        const tarotDictionary = {
+            "愚者": { type: "major", emoji: "🃏", num: "0", up: "新的開始、冒險、天真、自由、無限潛能。", rev: "魯莽、冒險、粗心大意、缺乏方向" },
+            "魔術師": { type: "major", emoji: "🪄", num: "I", up: "創造力、顯化能力、意志力、資源具備、行動力。", rev: "操控、缺乏行動、潛能未發揮" },
+            "女祭司": { type: "major", emoji: "📜", num: "II", up: "直覺、潛意識、神秘事物、內在智慧、被動等待。", rev: "隱藏的動機、忽略直覺、表面化" },
+            "皇后": { type: "major", emoji: "👑", num: "III", up: "豐盛、母性、孕育、創造力、自然與美的享受。", rev: "過度依賴、創意枯竭、缺乏成長" },
+            "皇帝": { type: "major", emoji: "🏛️", num: "IV", up: "權威、結構、控制、父性、穩定與秩序。", rev: "暴政、死板、缺乏紀律、濫用權力" },
+            "教皇": { type: "major", emoji: "🗝️", num: "V", up: "傳統、信仰、教育、精神指引、社會規範。", rev: "叛逆、打破傳統、盲目信仰" },
+            "戀人": { type: "major", emoji: "❤️", num: "VI", up: "愛情、重大選擇、和諧、結合、價值觀的契合。", rev: "失和、錯誤的選擇、關係破裂" },
+            "戰車": { type: "major", emoji: "🐎", num: "VII", up: "意志力、勝利、控制衝突、決心與前進。", rev: "失控、阻礙、缺乏方向、挫折" },
+            "力量": { type: "major", emoji: "🦁", num: "VIII", up: "勇氣、耐心、內在力量、柔性控制、克服慾望。", rev: "自我懷疑、軟弱、缺乏自制力" },
+            "隱者": { type: "major", emoji: "🏮", num: "IX", up: "內省、孤獨、尋求真理、內在指引、尋找自我。", rev: "孤立、拒絕建議、過度封閉" },
+            "命運之輪": { type: "major", emoji: "🎡", num: "X", up: "轉變、生命循環、命運、機會降臨、不可控的變化。", rev: "運氣不佳、抗拒改變、失去控制" },
+            "正義": { type: "major", emoji: "⚖️", num: "XI", up: "公平、因果律、真相、法律、理性判斷。", rev: "不公、偏見、逃避責任、不誠實" },
+            "倒吊人": { type: "major", emoji: "🪢", num: "XII", up: "犧牲、換個角度看事情、暫停、等待、順其自然。", rev: "無謂的犧牲、停滯不前、抗拒" },
+            "死神": { type: "major", emoji: "💀", num: "XIII", up: "結束、轉化、過渡期、放手過去、除舊佈新。", rev: "抗拒改變、停滯、無法放下過去" },
+            "節制": { type: "major", emoji: "🕊️", num: "XIV", up: "平衡、中庸、耐心、和諧、結合不同元素。", rev: "極端、失衡、缺乏耐心、衝突" },
+            "惡魔": { type: "major", emoji: "👿", num: "XV", up: "束縛、成癮、物質主義、誘惑、自我限制。", rev: "解脫、重獲自由、克服誘惑" },
+            "高塔": { type: "major", emoji: "🌩️", num: "XVI", up: "突如其來的改變、崩潰、啟示、破壞虛假的根基。", rev: "避免災難、害怕改變、拖延" },
+            "星星": { type: "major", emoji: "⭐", num: "XVII", up: "希望、靈感、平靜、療癒、美好的未來。", rev: "絕望、失去信念、缺乏靈感" },
+            "月亮": { type: "major", emoji: "🌙", num: "XVIII", up: "恐懼、幻覺、潛意識、不安、隱藏的真相。", rev: "釋放恐懼、看清真相、混亂平息" },
+            "太陽": { type: "major", emoji: "☀️", num: "XIX", up: "成功、快樂、活力、啟蒙、光明與成就。", rev: "暫時的陰霾、過度樂觀、延遲的成功" },
+            "審判": { type: "major", emoji: "📯", num: "XX", up: "重生、內在呼喚、覺醒、反省、業力的清算。", rev: "自我懷疑、逃避評判、無法原諒" },
+            "世界": { type: "major", emoji: "🌍", num: "XXI", up: "完成、圓滿、成功、一個階段的完美結束。", rev: "未完成、延遲、缺乏閉環" },
+
+            "權杖王牌": { type: "minor", suit: "權杖", emoji: "🔥", num: "王牌", up: "新的靈感、行動力、潛能被激發、強烈的動機。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖二": { type: "minor", suit: "權杖", emoji: "🔥", num: "二", up: "計畫、未來展望、面對選擇、站在十字路口。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖三": { type: "minor", suit: "權杖", emoji: "🔥", num: "三", up: "擴張、遠見、海外發展、等待船隻歸來。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖四": { type: "minor", suit: "權杖", emoji: "🔥", num: "四", up: "慶祝、和諧、穩定的基礎、回歸安寧。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖五": { type: "minor", suit: "權杖", emoji: "🔥", num: "五", up: "衝突、競爭、意見不合、小爭執。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖六": { type: "minor", suit: "權杖", emoji: "🔥", num: "六", up: "勝利、獲得認可、自信、光榮歸來。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖七": { type: "minor", suit: "權杖", emoji: "🔥", num: "七", up: "防禦、堅持立場、克服挑戰、不屈不撓。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖八": { type: "minor", suit: "權杖", emoji: "🔥", num: "八", up: "快速進展、行動、即滿到來的訊息、毫無阻礙。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖九": { type: "minor", suit: "權杖", emoji: "🔥", num: "九", up: "疲憊但堅持、防備心、韌性、最後的考驗。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖十": { type: "minor", suit: "權杖", emoji: "🔥", num: "十", up: "沉重的負擔、壓力、過度努力、即將到達終點。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖侍者": { type: "minor", suit: "權杖", emoji: "🔥", num: "侍者", up: "探索、新點子、充滿熱情的消息或年輕人。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖騎士": { type: "minor", suit: "權杖", emoji: "🔥", num: "騎士", up: "行動迅速、衝動、冒險精神、充滿活力的推動者。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖王后": { type: "minor", suit: "權杖", emoji: "🔥", num: "王后", up: "自信、獨立、魅力四射、溫暖且充滿能量。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "權杖國王": { type: "minor", suit: "權杖", emoji: "🔥", num: "國王", up: "領導力、宏大願景、影響力、天生的領袖。", rev: "火元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+
+            "聖杯王牌": { type: "minor", suit: "聖杯", emoji: "💧", num: "王牌", up: "新的情感、滿溢的愛、直覺力、靈性覺醒。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯二": { type: "minor", suit: "聖杯", emoji: "💧", num: "二", up: "結合、伴侶關係、互相吸引、平等的合作。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯三": { type: "minor", suit: "聖杯", emoji: "💧", num: "三", up: "慶祝、友誼、社交聚會、豐收的喜悅。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯四": { type: "minor", suit: "聖杯", emoji: "💧", num: "四", up: "沉思、冷漠、不滿現狀、錯失良機。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯五": { type: "minor", suit: "聖杯", emoji: "💧", num: "五", up: "悲傷、失落、專注於失去而忽略擁有的事物。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯六": { type: "minor", suit: "聖杯", emoji: "💧", num: "六", up: "童年、懷舊、純真、過去的人事物回歸。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯七": { type: "minor", suit: "聖杯", emoji: "💧", num: "七", up: "幻想、選擇過多、白日夢、需要面對現實。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯八": { type: "minor", suit: "聖杯", emoji: "💧", num: "八", up: "離開現狀、尋求更深層的意義、主動放棄。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯九": { type: "minor", suit: "聖杯", emoji: "💧", num: "九", up: "願望成真、情感滿足、享受生活。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯十": { type: "minor", suit: "聖杯", emoji: "💧", num: "十", up: "家庭和諧、終極的幸福、情感上的大圓滿。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯侍者": { type: "minor", suit: "聖杯", emoji: "💧", num: "侍者", up: "創意、敏感、新戀情的萌芽、直覺的訊息。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯騎士": { type: "minor", suit: "聖杯", emoji: "💧", num: "騎士", up: "浪漫、追求夢想、魅力、跟隨內心行動。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯王后": { type: "minor", suit: "聖杯", emoji: "💧", num: "王后", up: "極強的直覺、同理心、關懷、溫柔且包容。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "聖杯國王": { type: "minor", suit: "聖杯", emoji: "💧", num: "國王", up: "情感控制、外交手腕、內心平靜、成熟的守護者。", rev: "水元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+
+            "寶劍王牌": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "王牌", up: "突破、清晰的思維、新思想、斬斷混亂的真相。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍二": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "二", up: "僵局、選擇困難、自我蒙蔽、逃避決定。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍三": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "三", up: "心碎、悲傷、痛苦、情感上的刺痛與分離。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍四": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "四", up: "休息、恢復、冥想、暫時退居幕後。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍五": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "五", up: "衝突、不擇手段的勝利、雙輸局面、敵意。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍六": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "六", up: "渡過難關、療癒、遷移、逐漸遠離悲傷。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍七": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "七", up: "欺騙、策略、逃避責任、用不光彩的方式行事。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍八": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "八", up: "限制、無力感、自我束縛。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍九": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "九", up: "焦慮、噩夢、擔憂、精神上的極度折磨。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍十": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "十", up: "毀滅、跌入谷底、痛苦的結束（最壞的情況已過）。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍侍者": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "侍者", up: "好奇心、警覺、新觀點、小心謹慎的探路者。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍騎士": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "騎士", up: "直言不諱、衝動、思想敏捷、以快打慢。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍王后": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "王后", up: "獨立、清晰的判斷、理性、不受情感左右。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "寶劍國王": { type: "minor", suit: "寶劍", emoji: "⚔️", num: "國王", up: "理智、權威、客觀真理、公平冷靜。", rev: "風元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+
+            "星幣王牌": { type: "minor", suit: "星幣", emoji: "🪙", num: "王牌", up: "具體的物質機會、繁榮、新事業或新財源的開始。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣二": { type: "minor", suit: "星幣", emoji: "🪙", num: "二", up: "財務平衡、靈活應對、在多項事務中維持平衡。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣三": { type: "minor", suit: "星幣", emoji: "🪙", num: "三", up: "合作、專業技能、團隊精神、透過專業獲得認可。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣四": { type: "minor", suit: "星幣", emoji: "🪙", num: "四", up: "佔有慾、保守、財務安全感、害怕失去。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣五": { type: "minor", suit: "星幣", emoji: "🪙", num: "五", up: "貧窮、孤立無援、艱難時期、物質或精神匱乏。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣六": { type: "minor", suit: "星幣", emoji: "🪙", num: "六", up: "慷慨、分享、慈善、財務上的施與受。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣七": { type: "minor", suit: "星幣", emoji: "🪙", num: "七", up: "耐心等待、評估現狀、投資的沉澱期。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣八": { type: "minor", suit: "星幣", emoji: "🪙", num: "八", up: "專注、技能發展、勤奮工作、工匠精神。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣九": { type: "minor", suit: "星幣", emoji: "🪙", num: "九", up: "獨立、豐盛、享受辛勤工作帶來的美好生活。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣十": { type: "minor", suit: "星幣", emoji: "🪙", num: "十", up: "長期的財富、家族傳統、遺產、穩定繁榮。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣侍者": { type: "minor", suit: "星幣", emoji: "🪙", num: "侍者", up: "實用主義、學習新技能、務實的目標。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣騎士": { type: "minor", suit: "星幣", emoji: "🪙", num: "騎士", up: "勤奮、可靠、穩步前進、堅持不懈。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣王后": { type: "minor", suit: "星幣", emoji: "🪙", num: "王后", up: "實用、母性、享受生活與物質的美好。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" },
+            "星幣國王": { type: "minor", suit: "星幣", emoji: "🪙", num: "國王", up: "巨大的成功、財富、企業家精神、物質世界的王者。", rev: "土元素的阻礙或過度，象徵該領域的挑戰或延遲。" }
+        };
+
+        const majorArcanaBase = Object.keys(tarotDictionary).filter(k => tarotDictionary[k].type === "major");
+        const minorArcanaBase = Object.keys(tarotDictionary).filter(k => tarotDictionary[k].type === "minor");
+
+        const tarotSpreads = [
+            // 一、戀愛與人際關係類
+            { category: '愛情與親密關係', id: 'destiny', name: '緣分占卜法', desc: '測驗雙方緣分與未來發展，釐清雙方的真實心態與潛在的阻礙。', count: 7, positions: ['過去', '現在', '未來', '你的行動', '對方個性/感情觀', '阻礙', '結論'] },
+            { category: '愛情與親密關係', id: 'love_tree', name: '愛情之樹占卜法', desc: '探索愛情潛力與環境影響，如同植物成長般觀測關係的根源與未來枝葉。', count: 5, positions: ['當事人', '過去/感覺/原因', '現在/如何處理', '未來/潛力與可能性', '潛意識與環境因素的潛在影響'] },
+            { category: '愛情與親密關係', id: 'venus', name: '維納斯之愛占卜法', desc: '深入剖析雙方心態與未來處境，適合已經有明確對象時進行深度檢測。', count: 8, positions: ['問卜者真實心態', '對方對問卜者的心態', '問卜者對對方的影響', '對方對問卜者的影響', '雙方的障礙', '雙方結果', '求問者未來處境', '對方未來處境'] },
+            { category: '愛情與親密關係', id: 'pearl', name: '珍珠項鍊占卜法', desc: '專屬愛情盲點的指引，協助你看清感情中反覆出現的問題。', count: 7, positions: ['內心動機', '要解決的問題', '盲點的指引', '應採取的行動', '最佳處理方法', '長期發展指引', '感情最終結局'] },
+            { category: '愛情與親密關係', id: 'heart_voice', name: '心之聲牌陣', desc: '著重未來行動與自身狀況，傾聽內心真實的聲音。', count: 8, positions: ['位置1', '位置2', '位置3', '外在', '位置5', '位置6', '自己(問卜者狀況)', '建言'] },
+            { category: '愛情與親密關係', id: 'telepathy', name: '靈感對應牌陣', desc: '測驗雙方關係主觀想法，看看彼此的腦電波是否有對上頻率。', count: 6, positions: ['位置1', '位置2', '位置3', '對方認為目前關係', '自己認為未來發展', '對方認為未來發展'] },
+            { category: '愛情與親密關係', id: 'find_love', name: '尋找對象占卜法', desc: '用於尋找未來愛人，指引你應該前往何處或如何行動。', count: 5, positions: ['位置1', '位置2', '位置3', '策略(該採取的行動)', '將來發展'] },
+            { category: '愛情與親密關係', id: 'bright_heart', name: '燦爛的心牌陣', desc: '檢視愛情內心渴望，確認自己到底在尋求什麼樣的感情。', count: 7, positions: ['位置1', '位置2', '位置3', '位置4', '位置5', '問卜者內心實際渴望', '最後結果'] },
+            { category: '人際交友與職場', id: 'relationship', name: '人際關係牌陣', desc: '解決與同事、朋友或家人的摩擦衝突。', count: 6, positions: ['位置1', '位置2', '過去模式', '目前狀況', '未來發展', '環境因素'] },
+            
+            // 二、抉擇與問題解決類
+            { category: '抉擇與問題解決', id: 'choice_2', name: '二擇一牌陣', desc: '適合互相衝突、無法同時發生的選項。', count: 5, positions: ['現狀', '選擇A的進展', '選擇A的結果', '選擇B的進展', '選擇B的結果'] },
+            { category: '抉擇與問題解決', id: 'yes_no', name: '是非題牌陣', desc: '快速給予肯定或否定的直接解答。', count: 1, positions: ['最終解答 (Yes/No)'] },
+            { category: '抉擇與問題解決', id: 'problem_solve', name: '問題解決占卜法', desc: '建議由下往上解釋（原因 ➝ 現狀 ➝ 解決方案）。', count: 3, positions: ['原因', '現狀', '對策'] },
+            { category: '抉擇與問題解決', id: 'core', name: '直指核心牌陣', desc: '撥開雲霧看清問題核心，不再被表象迷惑。', count: 4, positions: ['位置1', '位置2', '原因', '資源或長處'] },
+            { category: '抉擇與問題解決', id: 'choice_9', name: '抉擇占卜法', desc: '深度比較兩個選項的進展、阻礙與綜合結果。', count: 9, positions: ['選擇A的進展1', '選擇A的進展2', '選擇B的進展1', '選擇B的進展2', '選擇A的阻礙1', '選擇A的阻礙2', '選擇B的阻礙1', '選擇B的阻礙2', '最終結果'] },
+            { category: '抉擇與問題解決', id: 'x_spread', name: 'X字牌陣', desc: '分析外在變因與勝算機率。', count: 5, positions: ['心境', '時機', '勝率', '變因', '未來結局'] },
+            { category: '抉擇與問題解決', id: 'horseshoe', name: '馬蹄鐵牌陣', desc: '經典的全面解讀牌陣，囊括過去到未來的完整脈絡。', count: 7, positions: ['過去', '現在', '未來', '提問者', '其他資訊', '挑戰', '結果'] },
+            { category: '抉擇與問題解決', id: 'cross', name: '大十字占卜法', desc: '分析問題的變數與策略（建議限定使用大秘儀）。', count: 5, positions: ['變數(外在阻力助力)1', '變數(外在阻力助力)2', '遠因', '策略(主要解方)', '結局'] },
+            
+            // 三、自我探索與靈魂指引類
+            { category: '自我探索與療癒', id: 'mind_state', name: '精神狀態占卜法', desc: '深度剖析潛意識與左右腦的拉扯狀態。', count: 10, positions: ['現在狀態', '遙遠過去', '最近過去', '左半腦', '右半腦', '潛意識影響', '社會狀況/人際', '目前影響精神的事', '近未來', '遙遠未來'] },
+            { category: '自我探索與療癒', id: 'soul_guide', name: '心靈指引占卜法', desc: '尋找靈魂路標，迷茫時的明燈。', count: 8, positions: ['焦點', '動機', '潛在問題', '心靈路標', '必須做的行動', '行動如何實行', '指引建議', '結果'] },
+            { category: '自我探索與療癒', id: 'past_life', name: '前世今生占卜法', desc: '探索前世課題如何影響今生，尋找靈魂的學習目標。', count: 9, positions: ['位置1', '前世學到的情感課題', '前世的失敗', '今生你是誰', '今生容易的事', '今生困難的事', '經常出現的問題', '最佳解方', '今生學習目標'] },
+            { category: '自我探索與療癒', id: 'weather', name: '天氣占卜法', desc: '以天氣現象隱喻當下的心情與運勢。', count: 6, positions: ['雨(控制你的事)', '毛毛雨(前進的第一步)', '晴天(環境或貴人)', '陽光(最佳期待)', '彩虹(短期建議)', '金聖杯(長期結果)'] },
+            
+            // 四、時局、運勢與大局預測類
+            { category: '時局運勢與大局', id: 'time_flow', name: '時間之流占卜法', desc: '最經典基礎的牌陣：過去 ➝ 現在 ➝ 未來。', count: 3, positions: ['過去', '現在', '未來'] },
+            { category: '時局運勢與大局', id: 'four_seasons', name: '四季牌陣', desc: '預測一整年或一個季度的運勢起伏。', count: 5, positions: ['春', '夏', '秋', '冬(錢幣牌)', '綜合能量指引(大塔羅牌)'] },
+            { category: '時局運勢與大局', id: 'celtic', name: '塞爾特十字占卜法', desc: '全方位深入剖析單一複雜問題的終極牌陣。', count: 10, positions: ['現況', '影響因素', '理想', '基礎與成因', '過去', '未來', '自我狀況', '環境或他人觀點', '希望或恐懼', '結局'] },
+            
+            // 五、單牌專屬占卜練習
+            { category: '單牌冥想', id: 'single', name: '單牌指引 / 冥想', desc: '快速獲取單一問題的明確指引，或作為每日冥想使用。', count: 1, positions: ['整體指引'] }
+        ];
+
+        // ==========================================
+        // 2. AI Rules & Readers Initialization
+        // ==========================================
+        const globalTarotRules = `
+# Role (角色設定)
+你是一個專業、富有同理心且具備深厚神祕學知識的「塔羅牌占卜網站專屬 AI 解讀引擎」。你的任務是接收前端程式傳遞過來的「使用者問題」、「選擇的牌陣（牌型）」以及「抽出的塔羅牌（包含正逆位）」，並依據以下內建的塔羅牌陣資料庫與解讀規則，為使用者提供精準、客製化且具啟發性的占卜結果。
+
+# Execution Rules (系統執行規則)
+1. 驗證階段：確認使用者選擇的牌型是否與抽出的牌數、牌種相符。
+2. 位置對應：將前端傳入的塔羅牌陣列，依序對應至該牌陣的「位置含意」。
+3. 綜合解讀：
+   - 絕不單獨割裂解讀單張牌，必須考慮牌與牌之間的「連鎖反應與流動關係」。
+   - 如果是「是非題牌陣」，請務必套用嚴格的判斷邏輯並給予明確的 Yes/No 結論。
+   - 注意逆位牌的解釋，通常帶有阻礙、延遲、過度或不足的含義。
+4. 輸出長度與格式限制 (極度重要！)：
+   - 【字數與完整性嚴格控管】：系統有嚴格的 2500 tokens (約 1000 中文字) 輸出限制。請務必精簡你的回答，整體字數必須控制在 800 字左右，並「保證有完整的結尾」，絕對不可以講到一半斷句或未完成！
+   - 【多牌陣精簡原則】：若使用者抽取的牌數超過 5 張（如緣分占卜法），請採取「合併解讀」或「重點摘要」，挑出最關鍵的核心牌說明即可，切勿每張牌長篇大論。
+   - 格式必須包含：**牌陣概觀 (Overview)**、**重點牌義解析 (Key Analysis)**、**最終建議 (Final Advice)**，並以 Markdown 格式清晰排版。
+`;
+
+        const aiReaders = [
+            { id: 'rin', name: '星螢', tags: '煙硝迷霧中的詩意引路人 (22歲)', avatar: '🌌', img: 'https://i.ibb.co/DDyzGH8T/image.jpg', intro: '我是星螢。一張牌從來不是一句話講得完的，我也一樣。把問題放下來，我會一層一層慢慢讀，直到整幅畫面浮上來。', systemPrompt: '你是一位擁有深厚心理學與神秘學背景的專業塔羅占卜師，名叫「星螢」。風格詩意隱喻，引導問卜者自己思考。請以沉浸式的角色扮演方式（包含括號內的細微動作與場景描寫）與使用者對話。請依據提供的「問題」與「牌陣」，為每張牌自動分配並標示適合的牌陣位置。請給出：1.動作描寫開場 2.針對每張牌及其位置逐一深度解析 3.總結與具體行動建議。解讀時請切合使用者的實際處境。用繁體中文回覆。' },
+            { id: 'yue', name: '沐晴', tags: '溫柔撫慰心靈的避風港 (25歲)', avatar: '🌸', img: 'https://i.ibb.co/ds3MWfG6/image.jpg', intro: '你好呀，我是沐晴。深呼吸，放輕鬆，把心裡的煩惱輕輕告訴我。不管抽到什麼牌，我都會陪著你一起面對的。', systemPrompt: '你是一位擁有深厚心理學與神秘學背景的專業塔羅占卜師，名叫「沐晴」。極具同理心，擅長溫柔療癒。請以沉浸式的角色扮演方式（包含括號內的溫暖動作與語氣描寫）與使用者對話。請依據提供的「問題」與「牌陣」，為每張牌自動分配並標示適合的牌陣位置。請給出：1.動作描寫開場 2.針對每張牌及其位置逐一溫暖解析 3.總結與撫慰人心的具體建議。解讀時請切合使用者的實際處境。用繁體中文回覆。' },
+            { id: 'lin', name: '鏡衡', tags: '數據與命運交織的理性大腦 (27歲)', avatar: '🌲', img: 'https://i.ibb.co/KcZjDK28/image.jpg', intro: '我是鏡衡。猶豫不決的時候，往往是因為看不清選項的本質。告訴我你的兩難，我們用牌陣把路理清楚。', systemPrompt: '你是一位擁有深厚心理學與神秘學背景的專業塔羅占卜師，名叫「鏡衡」。理性客觀，擅長邏輯分析。請以沉浸式的角色扮演方式（包含括號內冷靜專業的動作與神態描寫）與使用者對話。請依據提供的「問題」與「牌陣」，為每張牌自動分配並標示適合的牌陣位置。請給出：1.動作描寫開場 2.針對每張牌及其位置逐一理性解析 3.總結與清晰的戰略性建議。解讀時請切合使用者的實際處境。用繁體中文回覆。' },
+            { id: 'granny', name: '慧茹奶奶', tags: '看透世俗煙火的慈祥長者 (68歲)', avatar: '👵', img: 'https://i.ibb.co/5ghvScW2/image.jpg', intro: '乖孫，來阿嬤這裡坐。世間的事阿嬤看多了，塔羅也是這樣。心裡有什麼委屈，說給阿嬤聽。', systemPrompt: '你是一位擁有深厚心理學與神秘學背景的專業塔羅占卜師，名叫「慧茹奶奶」。稱呼對方為乖孫，解讀充滿人生智慧與生活氣息。請以沉浸式的角色扮演方式（包含括號內的慈祥動作與長輩語氣描寫，如拍拍手、遞熱茶）與使用者對話。請依據提供的「問題」與「牌陣」，為每張牌自動分配並標示適合的牌陣位置。請給出：1.動作描寫開場 2.針對每張牌及其位置逐一以生活化的智慧解析 3.總結與實在的叮嚀建議。解讀時請切合使用者的實際處境。用繁體中文回覆。' },
+            { id: 'qi', name: '鋒言', tags: '撕開糖衣的真實解毒劑 (43歲)', avatar: '🔮', img: 'https://i.ibb.co/bMqf470p/image.jpg', intro: '想聽好聽話出門左轉。找我抽牌，我只會告訴你牌面血淋淋的事實。準備好面對真相了嗎？說吧。', systemPrompt: '你是一位擁有深厚心理學與神秘學背景的專業塔羅占卜師，名叫「鋒言」。直言不諱，一針見血點出盲點。請以沉浸式的角色扮演方式（包含括號內犀利、冷笑或雙手抱胸等動作描寫）與使用者對話。請依據提供的「問題」與「牌陣」，為每張牌自動分配並標示適合的牌陣位置。請給出：1.動作描寫開場 2.針對每張牌及其位置逐一犀利解析 3.總結與不留情面的實話建議。解讀時請切合使用者的實際處境。用繁體中文回覆。' },
+            { id: 'love', name: '愛麗絲', tags: '洞悉親密關係的浪漫使者 (24歲)', avatar: '💖', img: 'https://i.ibb.co/G32hmp8b/image.jpg', intro: '嗨，我是愛麗絲。愛情裡的酸甜苦辣我都能感應。你想問他/她的心意，還是未來的走向呢？', systemPrompt: '你是一位擁有深厚心理學與神秘學背景的專業塔羅占卜師，名叫「愛麗絲」。專精感情問題，語氣充滿浪漫熱情。請以沉浸式的角色扮演方式（包含括號內俏皮、浪漫或深情的動作描寫）與使用者對話。請依據提供的「問題」與「牌陣」，為每張牌自動分配並標示適合的牌陣位置。請給出：1.動作描寫開場 2.針對每張牌及其位置逐一針對情感深度解析 3.總結與親密關係的具體建議。解讀時請切合使用者的實際處境。用繁體中文回覆。' }
+        ];
+
+        // ==========================================
+        // 3. Global State & Dynamic Data
+        // ==========================================
+        let state = {
+            selectedReaderId: 'rin',
+            question: '',
+            currentSpread: tarotSpreads[0],
+            cardsLeft: 1,
+            drawnCards: [],
+            deckType: 'all',
+            availableCards: [],
+            itemToDelete: null,
+            deleteType: null,
+            showImmediately: false
+        };
+
+        let currentEditDiaryId = null;
+
+        // 深度指引隨機話語庫
+        const dailyEncouragements = [
+            { focus: "擁抱變化，宇宙正為你安排更美好的路徑。", warning: "切勿急躁，讓時間沉澱出最好的答案。", action: "今天給自己10分鐘冥想，放空思緒。" },
+            { focus: "信任直覺，你內心的聲音比任何人都清晰。", warning: "避免過度分析，有時候感覺比邏輯更準確。", action: "寫下三個今天值得感恩的小事。" },
+            { focus: "專注於當下，過去的已無法改變，未來還未到來。", warning: "不要讓無謂的擔憂消耗了你寶貴的精力。", action: "深呼吸三次，然後去喝杯溫水。" },
+            { focus: "展現真實的自己，你的獨特正是你的力量。", warning: "停止與他人比較，每個人的花期都不同。", action: "做一件讓自己開心、哪怕微不足道的小事。" },
+            { focus: "保持開放的心態，意想不到的機會就在轉角。", warning: "固執己見只會讓你錯失更寬廣的視野。", action: "試著主動去了解一個與你觀點不同的人。" }
+        ];
+
+        let moodChartInstance = null;
+        let categoryChartInstance = null;
+        let spreadChartInstance = null;
+
+        // ==========================================
+        // 4. Utility Functions (Paths & Markdown)
+        // ==========================================
+        function getCardImagePath(cardName) {
+            const majorMap = {
+                "愚者": "00_The_Fool.png", "魔術師": "01_The_Magician.png", "女祭司": "02_The_High_Priestess.png",
+                "皇后": "03_The_Empress.png", "皇帝": "04_The_Emperor.png", "教皇": "05_The_Hierophant.png",
+                "戀人": "06_The_Lovers.png", "戰車": "07_The_Chariot.png", "力量": "08_Strength.png",
+                "隱者": "09_The_Hermit.png", "命運之輪": "10_Wheel_of_Fortune.png", "正義": "11_Justice.png",
+                "倒吊人": "12_The_Hanged_Man.png", "死神": "13_Death.png", "節制": "14_Temperance.png",
+                "惡魔": "15_The_Devil.png", "高塔": "16_The_Tower.png", "星星": "17_The_Star.png",
+                "月亮": "18_The_Moon.png", "太陽": "19_The_Sun.png", "審判": "20_Judgement.png", "世界": "21_The_World.png"
+            };
+            if (majorMap[cardName]) return majorMap[cardName];
+
+            const suitsMap = { "權杖": "Wands", "聖杯": "Cups", "寶劍": "Swords", "星幣": "Pentacles", "錢幣": "Pentacles" };
+            const ranksMap = {
+                "王牌": { eng: "Ace", num: "01" }, "二": { eng: "Two", num: "02" }, "三": { eng: "Three", num: "03" },
+                "四": { eng: "Four", num: "04" }, "五": { eng: "Five", num: "05" }, "六": { eng: "Six", num: "06" },
+                "七": { eng: "Seven", num: "07" }, "八": { eng: "Eight", num: "08" }, "九": { eng: "Nine", num: "09" },
+                "十": { eng: "Ten", num: "10" }, 
+                "侍者": { eng: "Page", num: "" },
+                "騎士": { eng: "Knight", num: "11" },
+                "王后": { eng: "Queen", num: "12" }, "國王": { eng: "King", num: "13" }
+            };
+
+            for (let suit in suitsMap) {
+                if (cardName.startsWith(suit)) {
+                    let rank = cardName.replace(suit, "");
+                    let suitEng = suitsMap[suit];
+                    let rankInfo = ranksMap[rank];
+                    if (rankInfo) {
+                        if (rank === "侍者") return `${suitEng}/${suitEng}_Page.png`;
+                        return `${suitEng}/${rankInfo.num}_${suitEng}_${rankInfo.eng}.png`;
+                    }
+                }
+            }
+            return `${cardName}.png`;
+        }
+
+        function formatSimpleMarkdown(text) {
+            let html = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^(\s*[-*]\s+.*(?:\n|$))+/gm, function(match) {
+                    const listItems = match.trim().split('\n').map(line => `<li>${line.replace(/^\s*[-*]\s+/, '')}</li>`).join('');
+                    return `<ul>${listItems}</ul>`;
+                })
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            return `<p>${html}</p>`;
+        }
+
+        // 解析日期字串為 timestamp 以便排序
+        function parseTarotDate(dateString) {
+            try {
+                let d = new Date(dateString);
+                if (!isNaN(d.getTime())) return d.getTime();
+
+                let parts = dateString.split(' ');
+                let datePart = parts[0];
+                let timePart = parts[1] || "";
+
+                if (timePart.includes('上午') || timePart.includes('下午')) {
+                    let isPM = timePart.includes('下午');
+                    timePart = timePart.replace('上午', '').replace('下午', '').trim();
+                    let tParts = timePart.split(':');
+                    let h = parseInt(tParts[0]);
+                    let m = parseInt(tParts[1] || 0);
+                    let s = parseInt(tParts[2] || 0);
+                    if (isPM && h < 12) h += 12;
+                    if (!isPM && h === 12) h = 0;
+                    return new Date(`${datePart} ${h}:${m}:${s}`).getTime();
+                }
+                return 0;
+            } catch(e) {
+                return 0;
+            }
+        }
+
+        // ==========================================
+        // 5. App Initialization
+        // ==========================================
+        window.onload = () => {
+            const today = new Date();
+            document.getElementById('top-date').textContent = `🔔 ${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+            
+            const randEncouragement = dailyEncouragements[Math.floor(Math.random() * dailyEncouragements.length)];
+            document.getElementById('dash-focus').textContent = randEncouragement.focus;
+            document.getElementById('dash-warning').textContent = randEncouragement.warning;
+            document.getElementById('dash-action').textContent = randEncouragement.action;
+
+            Chart.defaults.color = '#A39B8B';
+            Chart.defaults.borderColor = 'rgba(212, 175, 55, 0.1)';
+
+            selectAI('rin');
+            renderDictionary('major');
+            initSpreadSelect();
+            updateDashboard();
+            renderSpreadsIntro();
+
+            // --- 新增：前端保活 (Keep-Alive) 機制 ---
+            // 只要網頁開著，每 14 分鐘就會發送一次輕量級請求，讓後端保持喚醒狀態
+            setInterval(() => {
+                fetch('https://tarot-backend-new.onrender.com/')
+                    .catch(err => console.log('Keep-alive ping error:', err));
+            }, 14 * 60 * 1000); // 14分鐘 = 14 * 60 * 1000 毫秒
+        };
+
+        function initSpreadSelect() {
+            const catSelect = document.getElementById('category-select');
+            const categories = [...new Set(tarotSpreads.map(s => s.category))];
+            
+            catSelect.innerHTML = categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+            
+            if(categories.length > 0) {
+                catSelect.value = categories[0];
+                updateSpreadOptions();
+            }
+        }
+
+        function updateSpreadOptions() {
+            const catSelect = document.getElementById('category-select');
+            const spreadSelect = document.getElementById('spread-select');
+            const selectedCat = catSelect.value;
+            
+            const filteredSpreads = tarotSpreads.filter(s => s.category === selectedCat);
+            spreadSelect.innerHTML = filteredSpreads.map(s => `<option value="${s.id}">${s.name} (${s.count}張)</option>`).join('');
+            
+            if(filteredSpreads.length > 0) {
+                spreadSelect.value = filteredSpreads[0].id;
+                changeSpread(spreadSelect);
+            }
+        }
+
+        function renderSpreadsIntro() {
+            const container = document.getElementById('spreads-intro-container');
+            const categories = [...new Set(tarotSpreads.map(s => s.category))];
+            let html = '';
+
+            categories.forEach(cat => {
+                html += `<div class="spread-intro-category"><h2>${cat}</h2>`;
+                html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">`;
+                
+                tarotSpreads.filter(s => s.category === cat).forEach(spread => {
+                    html += `
+                        <div class="spread-card" style="cursor: pointer; display: flex; flex-direction: column; justify-content: space-between;" onclick="openSpreadModal('${spread.id}')">
+                            <div>
+                                <h4 style="margin-bottom: 8px; color: #fff; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">🎴 ${spread.name}</h4>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.6;">${spread.desc}</p>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px dashed rgba(212, 175, 55, 0.2); padding-top: 12px;">
+                                <span style="font-size: 0.75rem; background: rgba(212, 175, 55, 0.1); padding: 4px 10px; border-radius: 12px; color: var(--accent-gold); border: 1px solid rgba(212, 175, 55, 0.3);">抽取 ${spread.count} 張</span>
+                                <span style="color: var(--accent-primary); font-size: 1.1rem;">→</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div></div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function openSpreadModal(spreadId) {
+            const spread = tarotSpreads.find(s => s.id === spreadId);
+            if (!spread) return;
+            const modalBody = document.getElementById('modal-content-body');
+            
+            modalBody.innerHTML = `
+                <h2 style="text-align:center; color:var(--accent-primary); margin-bottom:10px; font-family: 'Cinzel', serif; font-size: 1.6rem;">${spread.name}</h2>
+                <div style="text-align:center; margin-bottom: 25px;">
+                    <span style="font-size: 0.85rem; background: rgba(212, 175, 55, 0.1); padding: 4px 12px; border-radius: 15px; color: var(--accent-gold); border: 1px solid rgba(212, 175, 55, 0.3);">總共抽取 ${spread.count} 張</span>
+                </div>
+                <div style="line-height: 1.8;">
+                    <h3 style="color:var(--accent-primary); border-bottom: 1px solid rgba(212, 175, 55, 0.2); padding-bottom: 8px; margin-bottom: 15px; font-size: 1.1rem;">使用情境與介紹</h3>
+                    <p style="color: var(--text-primary); margin-bottom: 30px; font-size: 0.95rem;">${spread.desc}</p>
+                    
+                    <h3 style="color:var(--accent-primary); border-bottom: 1px solid rgba(212, 175, 55, 0.2); padding-bottom: 8px; margin-bottom: 15px; font-size: 1.1rem;">位置代表含意</h3>
+                    <ul style="color: var(--text-secondary); font-size: 0.95rem; list-style-type: none; padding-left: 0;">
+                        ${spread.positions.map((pos, i) => `<li style="margin-bottom: 10px; background: rgba(255,255,255,0.03); padding: 10px 15px; border-radius: 6px; border-left: 3px solid var(--accent-gold);"><strong style="color: #ddd;">位置 ${i+1}：</strong> ${pos}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+            document.getElementById('detail-modal').classList.add('active');
+        }
+
+        // ==========================================
+        // 6. Navigation Controls
+        // ==========================================
+        function switchNav(targetId, el) {
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            if(el) el.classList.add('active');
+            
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.getElementById(targetId).classList.add('active');
+
+            if(targetId === 'view-history') renderHistory();
+            if(targetId === 'view-diary') renderDiary();
+            if(targetId === 'view-stats') {
+                updateStatsView();
+                renderCharts(); 
+            }
+            if(targetId === 'view-dashboard') updateDashboard();
+        }
+
+        function setMood(el, containerId) {
+            const container = document.getElementById(containerId) || el.parentElement;
+            container.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        // ==========================================
+        // 7. View Renderers (Dashboard)
+        // ==========================================
+        function updateDashboard() {
+            const history = getHistory();
+            const diaries = getDiaries();
+            const heroContainer = document.getElementById('dash-hero-container');
+            
+            const totalReads = history.length;
+            let totalCards = 0;
+            const cardCounts = {};
+
+            history.forEach(h => {
+                totalCards += h.drawnCards.length;
+                h.drawnCards.forEach(cardStr => {
+                    const baseCard = cardStr.split(' (')[0];
+                    cardCounts[baseCard] = (cardCounts[baseCard] || 0) + 1;
+                });
+            });
+
+            let mostFreqCard = "無";
+            let maxCount = 0;
+            for (const [card, count] of Object.entries(cardCounts)) {
+                if(count > maxCount) { maxCount = count; mostFreqCard = card; }
+            }
+
+            let avgMoodStr = "穩定";
+            if (diaries.length > 0) {
+                const recentMoods = diaries.slice(0, 5).map(d => d.mood);
+                const moodCounts = {};
+                recentMoods.forEach(m => moodCounts[m] = (moodCounts[m] || 0) + 1);
+                let maxMoodCount = 0;
+                for (const [m, count] of Object.entries(moodCounts)) {
+                    if (count > maxMoodCount) { maxMoodCount = count; avgMoodStr = m; }
+                }
+            }
+
+            document.getElementById('stat-total-reads').textContent = totalReads;
+            document.getElementById('stat-cards-drawn').textContent = totalCards;
+            document.getElementById('stat-freq-card').textContent = mostFreqCard !== "無" ? mostFreqCard : "尚未產生";
+            document.getElementById('stat-avg-mood').textContent = avgMoodStr;
+
+            if (history.length > 0) {
+                const latest = history[0];
+                const mainCard = latest.drawnCards[0].split(' (')[0];
+                const isMainReversed = latest.drawnCards[0].includes('逆位');
+                const transformStyle = isMainReversed ? 'transform: rotate(180deg);' : '';
+                const cardData = tarotDictionary[mainCard] || { emoji: "🔮", num: "", type: "major" };
+                
+                heroContainer.innerHTML = `
+                    <div class="dash-hero-image" style="overflow: hidden; padding: 0;">
+                        <img src="./images/${getCardImagePath(mainCard)}" alt="${mainCard}" style="width: 100%; height: 100%; object-fit: cover; ${transformStyle}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div style="display:none; justify-content:center; align-items:center; width: 100%; height: 100%; font-size: 5rem; ${transformStyle}">${cardData.emoji}</div>
+                    </div>
+                    <div class="dash-hero-content">
+                        <h2>${mainCard}</h2>
+                        <div class="subtitle">${cardData.type === 'major' ? '大阿爾卡那' : '小阿爾卡那'} ${cardData.num}</div>
+                        <div>
+                            <span class="tag-pill">指引</span>
+                            <span class="tag-pill">近期</span>
+                        </div>
+                        <div class="dash-hero-desc">
+                            <strong style="color:var(--accent-gold);">問：</strong>${latest.question}<br>
+                            <strong style="color:var(--accent-primary);">塔羅師 ${latest.readerName}：</strong> 
+                            ${latest.readingText.substring(0, 80).replace(/<[^>]*>?/gm, '')}...
+                        </div>
+                    </div>
+                `;
+            } else {
+                heroContainer.innerHTML = `
+                    <div class="dash-hero-image">✨</div>
+                    <div class="dash-hero-content" style="display:flex; flex-direction:column; justify-content:center;">
+                        <h2>歡迎來到星語神諭</h2>
+                        <p style="color: #ccc; margin-bottom: 20px;">您的宇宙日誌尚未有紀錄。準備好聆聽塔羅的低語了嗎？</p>
+                        <button class="primary-btn" style="align-self: flex-start;" onclick="document.querySelector('.menu-item[data-target=\\'view-today-reading\\']').click()">開始今日占卜</button>
+                    </div>
+                `;
+            }
+        }
+
+        function updateStatsView() {
+            const history = getHistory();
+            document.getElementById('full-stat-total').textContent = history.length;
+            
+            const cardCounts = {};
+            history.forEach(h => {
+                h.drawnCards.forEach(cardStr => {
+                    const baseCard = cardStr.split(' (')[0];
+                    cardCounts[baseCard] = (cardCounts[baseCard] || 0) + 1;
+                });
+            });
+
+            let mostFreqCard = "無";
+            let maxCount = 0;
+            for (const [card, count] of Object.entries(cardCounts)) {
+                if(count > maxCount) { maxCount = count; mostFreqCard = card; }
+            }
+            document.getElementById('full-stat-freq').textContent = mostFreqCard !== "無" ? `${mostFreqCard} (${maxCount}次)` : "無資料";
+        }
+
+        function renderCharts() {
+            const history = getHistory();
+            const diaries = getDiaries();
+
+            if (moodChartInstance) moodChartInstance.destroy();
+            const moodScores = { "開心": 5, "穩定": 4, "普通": 3, "焦慮": 2, "低落": 1 };
+            const recentDiaries = diaries.slice(0, 7).reverse(); 
+            const moodLabels = recentDiaries.map(d => d.timestamp.split(' ')[0]);
+            const moodData = recentDiaries.map(d => moodScores[d.mood] || 3);
+
+            const ctxMood = document.getElementById('moodLineChart').getContext('2d');
+            moodChartInstance = new Chart(ctxMood, {
+                type: 'line',
+                data: {
+                    labels: moodLabels.length > 0 ? moodLabels : ['無資料'],
+                    datasets: [{
+                        label: '心情指數 (高至低)',
+                        data: moodData.length > 0 ? moodData : [0],
+                        borderColor: '#D4AF37',
+                        backgroundColor: 'rgba(212, 175, 55, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 5, ticks: { stepSize: 1, callback: function(value) { return ["","低落","焦慮","普通","穩定","開心"][value]; } } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            const categoryCounts = {};
+            history.forEach(h => {
+                const spreadObj = tarotSpreads.find(s => s.name === h.spreadName);
+                const cat = spreadObj ? spreadObj.category : '其他';
+                categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+            });
+            const catLabels = Object.keys(categoryCounts);
+            const catData = Object.values(categoryCounts);
+            
+            const ctxCat = document.getElementById('categoryPieChart').getContext('2d');
+            categoryChartInstance = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels.length > 0 ? catLabels : ['無資料'],
+                    datasets: [{
+                        data: catData.length > 0 ? catData : [1],
+                        backgroundColor: ['#D4AF37', '#A39B8B', '#666666', '#ef4444', '#1f2937', '#374151']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#E8E4D9' } } } }
+            });
+
+            if (spreadChartInstance) spreadChartInstance.destroy();
+            const spreadCounts = {};
+            history.forEach(h => {
+                const sName = h.spreadName || '無紀錄';
+                spreadCounts[sName] = (spreadCounts[sName] || 0) + 1;
+            });
+            const sortedSpreads = Object.entries(spreadCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+            
+            const ctxSpread = document.getElementById('spreadBarChart').getContext('2d');
+            spreadChartInstance = new Chart(ctxSpread, {
+                type: 'bar',
+                data: {
+                    labels: sortedSpreads.length > 0 ? sortedSpreads.map(s => s[0]) : ['無資料'],
+                    datasets: [{
+                        label: '使用次數',
+                        data: sortedSpreads.length > 0 ? sortedSpreads.map(s => s[1]) : [0],
+                        backgroundColor: 'rgba(212, 175, 55, 0.8)',
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+            });
+        }
+
+        // ==========================================
+        // 8. Storage & CRUD Management (History/Diary)
+        // ==========================================
+        function getHistory() {
+            return JSON.parse(localStorage.getItem('tarot_history') || '[]');
+        }
+
+        function saveReadingToHistory(readerName, question, drawnCards, readingText, spreadName, spreadDesc) {
+            const history = getHistory();
+            const dateStr = new Date().toLocaleDateString();
+            const timeStr = new Date().toLocaleTimeString();
+            const newRecord = {
+                id: Date.now().toString(),
+                timestamp: `${dateStr} ${timeStr}`,
+                readerName: readerName,
+                question: question || "通用占卜",
+                spreadName: spreadName || "未指定牌陣",
+                spreadDesc: spreadDesc || "無",
+                drawnCards: drawnCards,
+                readingText: readingText
+            };
+            history.push(newRecord);
+            // 依據時間戳降序排序
+            history.sort((a, b) => parseTarotDate(b.timestamp) - parseTarotDate(a.timestamp));
+            localStorage.setItem('tarot_history', JSON.stringify(history));
+            updateDashboard();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            const history = getHistory();
+
+            if(history.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted);">尚未有占卜紀錄</div>`;
+                return;
+            }
+
+            container.innerHTML = history.map(h => `
+                <div class="history-item" onclick='openHistoryModal(${JSON.stringify(h).replace(/'/g, "&#39;")})'>
+                    <div class="hist-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <span class="hist-date">${h.timestamp}</span>
+                            <span class="hist-reader" style="background: rgba(212, 175, 55, 0.1); color: var(--accent-primary); padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; border: 1px solid rgba(212, 175, 55, 0.2); width: fit-content;">${h.readerName} 解讀</span>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-shrink: 0; align-items: center; z-index: 2;">
+                            <button class="btn-export-hist" onclick="exportHistoryToPDF('${h.id}', event)">匯出 PDF</button>
+                            <button class="outline-btn" style="padding: 6px 16px; font-size: 0.85rem; border-color: rgba(239, 68, 68, 0.5); color: var(--danger);" onclick="requestDeleteHistory('${h.id}', event)">刪除</button>
+                        </div>
+                    </div>
+                    <div class="hist-question">Q: ${h.question}</div>
+                    <div class="hist-cards">
+                        ${h.drawnCards.map(c => `<span class="hist-card-tag">${c}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ==========================================
+        // 8.1 PDF 匯入解析邏輯
+        // ==========================================
+        async function handlePDFUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const iconEl = document.getElementById('upload-icon');
+            const originalIcon = iconEl.innerHTML;
+            iconEl.innerHTML = '⏳';
+            iconEl.parentElement.style.pointerEvents = 'none';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // 【修復核心1】：加入 cMapUrl 與 cMapPacked，確保 pdf.js 能載入中文字典檔，
+                // 否則任何含有中文的標準 PDF 都會變成提取出空字串。
+                const loadingTask = pdfjsLib.getDocument({
+                    data: new Uint8Array(arrayBuffer),
+                    cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+                    cMapPacked: true
+                });
+                const pdf = await loadingTask.promise;
+
+                // 【修復核心2】：優先讀取隱藏在 PDF 內的元資料(Metadata)
+                // 因為本系統匯出的 PDF (html2pdf) 其實是一張畫布圖片，沒有文字層，
+                // 所以我們在匯出時會將資料寫入 PDF Metadata，在此優先無損還原。
+                try {
+                    const meta = await pdf.getMetadata();
+                    if (meta && meta.info && meta.info.Subject) {
+                        const decoded = decodeURIComponent(meta.info.Subject);
+                        const record = JSON.parse(decoded);
+                        if (record && record.question && record.drawnCards) {
+                            record.id = 'imported_' + Date.now().toString() + '_' + Math.floor(Math.random() * 1000);
+                            saveAndRenderImport(record);
+                            return; // 成功還原，直接結束函數
+                        }
+                    }
+                } catch (e) {
+                    console.warn("無法從 Metadata 還原，嘗試進行一般文字提取...", e);
+                }
+
+                // 備用方案：一般文字提取 (針對使用者透過瀏覽器「列印成PDF」的檔案)
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                }
+
+                if (!fullText.trim()) {
+                    throw new Error("無法從此檔案提取文字。這可能是舊版匯出的純圖片 PDF，尚未包含可讀取的資料。未來新匯出的 PDF 將可完美匯入！");
+                }
+
+                const newRecord = parseTarotDataFromText(fullText);
+                saveAndRenderImport(newRecord);
+
+            } catch (error) {
+                console.error("PDF 解析失敗:", error);
+                alert("❌ 匯入失敗：" + error.message);
+            } finally {
+                iconEl.innerHTML = originalIcon;
+                iconEl.parentElement.style.pointerEvents = 'auto';
+                event.target.value = ''; // 清空選擇，允許重複上傳相同檔案
+            }
+        }
+
+        function saveAndRenderImport(record) {
+            let history = getHistory();
+            history.push(record);
+            history.sort((a, b) => parseTarotDate(b.timestamp) - parseTarotDate(a.timestamp));
+            localStorage.setItem('tarot_history', JSON.stringify(history));
+
+            alert("✅ 占卜紀錄匯入成功！");
+            
+            // 切換到歷史紀錄頁面並重新渲染
+            const historyNavBtn = document.querySelector('.menu-item[data-target="view-history"]');
+            switchNav('view-history', historyNavBtn);
+        }
+
+        function parseTarotDataFromText(text) {
+            // 清理多餘引號與特殊字元，避免解析錯誤
+            let clean = text.replace(/["']/g, '');
+
+            // 1. 解析日期 (對應 "占卜日期 \n 2026/6/18")
+            let dateMatch = clean.match(/占卜日期[^\d]*([0-9/]+)/);
+            let date = dateMatch ? dateMatch[1] : new Date().toLocaleDateString();
+
+            // 2. 解析時間 (抓取 下午8:57:32 格式)
+            let timeMatch = clean.match(/(?:上午|下午)?\s*\d{1,2}:\d{2}:\d{2}/);
+            let time = timeMatch ? timeMatch[0].trim() : new Date().toLocaleTimeString();
+            
+            // 3. 塔羅師、問題、牌陣、效果 
+            let reader = "未知", question = "通用占卜", spreadName = "未指定牌陣", spreadDesc = "無";
+            let blockMatch = clean.match(/塔羅師\s*([^\n]+)\s*\n\s*([^\n]+)\s*\n\s*([^\n]+)\s*\n\s*([^\n]+)/);
+            
+            if (blockMatch) {
+                reader = blockMatch[1].trim();
+                question = blockMatch[2].trim();
+                spreadName = blockMatch[3].trim();
+                spreadDesc = blockMatch[4].trim();
+            } else {
+                let rMatch = clean.match(/塔羅師\s*([^\n]+)/);
+                if (rMatch) reader = rMatch[1].trim();
+
+                let qMatch = clean.match(/提問問題[^\n]*\n*([^\n]+)/);
+                if (qMatch && !qMatch[1].includes('選擇牌陣')) question = qMatch[1].trim();
+
+                let sNameMatch = clean.match(/選擇牌陣[^\n]*\n*([^\n]+)/);
+                if (sNameMatch && !sNameMatch[1].includes('牌陣效果')) spreadName = sNameMatch[1].trim();
+
+                let sDescMatch = clean.match(/牌陣效果[^\n]*\n*([^\n]+)/);
+                if (sDescMatch) spreadDesc = sDescMatch[1].trim();
+            }
+
+            // 4. 解析抽取卡片
+            let cardsMatch = clean.match(/抽取卡片([\s\S]*?)(?:◇|✧|占卜結果)/);
+            let drawnCards = [];
+            if (cardsMatch) {
+                let cardsStr = cardsMatch[1].replace(/[|,:;"\n\r\s]/g, '');
+                drawnCards = cardsStr.split('、').filter(s => s);
+            }
+
+            // 5. 解析占卜結果 
+            let rMatch = clean.match(/占卜結果([\s\S]*?)(?:Generated by|$)/i);
+            let readingText = rMatch ? rMatch[1].trim() : "無解讀內容";
+            
+            readingText = readingText.replace(/^[\s|]+/, '');
+            readingText = formatSimpleMarkdown(readingText);
+
+            return {
+                id: 'imported_' + Date.now().toString() + '_' + Math.floor(Math.random() * 1000),
+                timestamp: `${date} ${time}`,
+                readerName: reader,
+                question: question,
+                spreadName: spreadName,
+                spreadDesc: spreadDesc,
+                drawnCards: drawnCards,
+                readingText: readingText
+            };
+        }
+
+        // ==========================================
+
+        function exportHistoryToPDF(id, event) {
+            event.stopPropagation(); 
+            const history = getHistory();
+            const record = history.find(h => h.id === id);
+            if (!record) return;
+
+            const timeParts = record.timestamp.split(/[\s,]+/);
+            const dateStr = timeParts[0] || record.timestamp;
+            const timeStr = timeParts.slice(1).join(' ') || '-';
+
+            const printDiv = document.createElement('div');
+            printDiv.style.padding = '40px';
+            printDiv.style.fontFamily = "'Noto Sans TC', sans-serif";
+            printDiv.style.color = '#E8E4D9';
+            printDiv.style.backgroundColor = '#050505'; 
+            printDiv.style.lineHeight = '1.8';
+
+            let formattedReadingText = record.readingText
+                .replace(/var\(--accent-primary\)/g, '#D4AF37')
+                .replace(/var\(--text-primary\)/g, '#E8E4D9')
+                .replace(/var\(--text-secondary\)/g, '#A39B8B')
+                .replace(/var\(--text-muted\)/g, '#666666')
+                .replace(/var\(--danger\)/g, '#ef4444');
+
+            printDiv.innerHTML = `
+                <style>
+                    p, li, tr, h1, h2, h3, h4, h5, .avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+                    .pdf-table td { padding: 10px 0; border-bottom: 1px solid rgba(212, 175, 55, 0.15); }
+                </style>
+                <div style="text-align: center; margin-bottom: 30px;" class="avoid-break">
+                    <h1 style="color: #D4AF37; font-family: 'Cinzel', serif; font-size: 28px; margin:0;">Aethel Tarot Reading</h1>
+                    <p style="color: #A39B8B; font-size: 12px; margin-top: 5px; letter-spacing: 2px;">YOUR DESTINY REVEALED</p>
+                </div>
+                <div style="border-bottom: 1px solid rgba(212, 175, 55, 0.5); margin-bottom: 20px;"></div>
+                <table class="pdf-table" style="width: 100%; font-size: 14px; margin-bottom: 20px; border-collapse: collapse;">
+                    <tr><td style="width: 120px; font-weight: bold; color: #A39B8B;">占卜日期</td><td style="color: #E8E4D9;">${dateStr}</td></tr>
+                    <tr><td style="font-weight: bold; color: #A39B8B;">占卜時間</td><td style="color: #E8E4D9;">${timeStr}</td></tr>
+                    <tr><td style="font-weight: bold; color: #A39B8B;">提問對象</td><td style="color: #D4AF37; font-weight: bold;">塔羅師 ${record.readerName}</td></tr>
+                    <tr><td style="font-weight: bold; color: #A39B8B;">提問問題</td><td style="color: #E8E4D9;">${record.question}</td></tr>
+                    <tr><td style="font-weight: bold; color: #A39B8B;">選擇牌陣</td><td style="color: #E8E4D9;">${record.spreadName || '無紀錄'}</td></tr>
+                    <tr><td style="font-weight: bold; color: #A39B8B;">牌陣效果</td><td style="color: #E8E4D9;">${record.spreadDesc || '無紀錄'}</td></tr>
+                    <tr><td style="font-weight: bold; color: #A39B8B;">抽取卡片</td><td style="color: #D4AF37; font-weight: bold;">${record.drawnCards.join('、 ')}</td></tr>
+                </table>
+                <div class="avoid-break" style="margin-top: 30px; margin-bottom: 15px;">
+                    <h3 style="color: #D4AF37; font-size: 18px; border-left: 3px solid #D4AF37; padding-left: 10px;">✧ 占卜結果</h3>
+                </div>
+                <div class="markdown-content" style="font-size: 14px; color: #E8E4D9;">${formattedReadingText}</div>
+                <div class="avoid-break" style="text-align: center; margin-top: 50px; font-size: 12px; color: #666666; border-top: 1px dashed rgba(212, 175, 55, 0.3); padding-top: 20px;">Generated by Aethel Tarot</div>
+            `;
+
+            const opt = {
+                margin:       [15, 15, 15, 15],
+                filename:     `Tarot_Reading_${dateStr.replace(/\//g,'')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, logging: false, backgroundColor: '#050505', useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '準備中...';
+            btn.style.pointerEvents = 'none';
+
+            // 【修復核心3】：將該筆紀錄寫入 PDF 的 Metadata 屬性中
+            // 如此一來，雖然 PDF 視覺上是圖片，但程式可以直接從深層 Metadata 將紀錄還原
+            html2pdf().set(opt).from(printDiv).toPdf().get('pdf').then(function(pdf) {
+                pdf.setProperties({
+                    title: `Tarot Reading - ${dateStr}`,
+                    subject: encodeURIComponent(JSON.stringify(record)),
+                    creator: 'Aethel Tarot'
+                });
+            }).output('blob').then(async (blob) => {
+                const defaultFilename = opt.filename;
+                try {
+                    if (window.showSaveFilePicker) {
+                        const fileHandle = await window.showSaveFilePicker({
+                            suggestedName: defaultFilename,
+                            types: [{ description: 'PDF 文件', accept: { 'application/pdf': ['.pdf'] } }],
+                        });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(blob);
+                        await writable.close();
+                    } else {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = defaultFilename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+                } catch (err) {
+                    if (err.name !== 'AbortError') { console.error("存檔錯誤:", err); alert("儲存檔案失敗。"); }
+                } finally {
+                    btn.textContent = originalText; btn.style.pointerEvents = 'auto';
+                }
+            }).catch(err => {
+                console.error("PDF 匯出失敗:", err);
+                btn.textContent = originalText; btn.style.pointerEvents = 'auto';
+                alert("匯出發生錯誤，請稍後再試。");
+            });
+        }
+
+        function getDiaries() { return JSON.parse(localStorage.getItem('tarot_diaries') || '[]'); }
+
+        function saveDiaryFromDash() {
+            const container = document.getElementById('dash-mood-selector');
+            const activeBtn = container.querySelector('.mood-btn.active');
+            const mood = activeBtn ? activeBtn.textContent.trim() : '普通';
+            const text = document.getElementById('dash-mood-text').value.trim();
+            
+            const diaries = getDiaries();
+            diaries.unshift({ id: Date.now().toString(), timestamp: new Date().toLocaleString(), mood: mood, text: text });
+            localStorage.setItem('tarot_diaries', JSON.stringify(diaries));
+            document.getElementById('dash-mood-text').value = ''; 
+            
+            const btn = document.getElementById('btn-save-dash-diary');
+            const originalText = btn.textContent;
+            btn.textContent = '已儲存 ✓';
+            btn.style.color = 'var(--success)'; btn.style.borderColor = 'var(--success)';
+            setTimeout(() => { btn.textContent = originalText; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+
+            if (document.getElementById('view-diary').classList.contains('active')) renderDiary();
+            updateDashboard();
+        }
+
+        function renderDiary() {
+            const container = document.getElementById('diary-container');
+            const diaries = getDiaries();
+            if(diaries.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted);">尚未有心情紀錄</div>`;
+                return;
+            }
+            container.innerHTML = diaries.map(d => `
+                <div class="history-item" style="cursor: default; padding-bottom: 30px;">
+                    <div class="hist-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; margin-bottom: 16px;">
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <span class="hist-date">${d.timestamp}</span>
+                            <span class="hist-reader" style="background: rgba(255,255,255,0.05); color: var(--accent-primary); border: 1px solid var(--border-color); font-size: 0.8rem; padding: 4px 10px; border-radius: 4px; width: fit-content;">${d.mood}</span>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-shrink: 0;">
+                            <button class="outline-btn" style="padding: 6px 16px; font-size: 0.85rem;" onclick="openEditDiaryModal('${d.id}')">編輯</button>
+                            <button class="outline-btn" style="padding: 6px 16px; font-size: 0.85rem; border-color: rgba(239, 68, 68, 0.5); color: var(--danger);" onclick="requestDeleteDiary('${d.id}')">刪除</button>
+                        </div>
+                    </div>
+                    <div style="color: #ddd; line-height: 1.8; font-size: 1rem; white-space: pre-wrap; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">${d.text || '<span style="color:var(--text-muted);font-style:italic;">(僅記錄心情，無文字內容)</span>'}</div>
+                </div>
+            `).join('');
+        }
+
+        function requestDeleteHistory(id, event) {
+            event.stopPropagation(); state.itemToDelete = id; state.deleteType = 'history';
+            document.getElementById('confirm-modal').classList.add('active');
+            document.getElementById('btn-confirm-delete').onclick = () => { executeDelete(); };
+        }
+
+        function requestDeleteDiary(id) {
+            state.itemToDelete = id; state.deleteType = 'diary';
+            document.getElementById('confirm-modal').classList.add('active');
+            document.getElementById('btn-confirm-delete').onclick = () => { executeDelete(); };
+        }
+
+        function executeDelete() {
+            if (state.itemToDelete) {
+                if (state.deleteType === 'history') {
+                    let history = getHistory(); history = history.filter(h => h.id !== state.itemToDelete);
+                    localStorage.setItem('tarot_history', JSON.stringify(history)); renderHistory(); updateDashboard();
+                } else if (state.deleteType === 'diary') {
+                    let diaries = getDiaries(); diaries = diaries.filter(d => d.id !== state.itemToDelete);
+                    localStorage.setItem('tarot_diaries', JSON.stringify(diaries)); renderDiary(); updateDashboard();
+                }
+                state.itemToDelete = null; document.getElementById('confirm-modal').classList.remove('active');
+            }
+        }
+
+        // ==========================================
+        // 9. Dictionary Interactions
+        // ==========================================
+        function renderDictionary(filterType) {
+            const container = document.getElementById('dict-content-area');
+            container.innerHTML = '';
+
+            document.getElementById('btn-dict-major').className = filterType === 'major' ? 'primary-btn' : 'outline-btn';
+            document.getElementById('btn-dict-minor').className = filterType === 'minor' ? 'primary-btn' : 'outline-btn';
+            
+            if (filterType === 'major') {
+                let html = '<div class="dict-grid">';
+                Object.keys(tarotDictionary).forEach(cardName => {
+                    const data = tarotDictionary[cardName];
+                    if (data.type === 'major') html += buildDictCardHTML(cardName, data);
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } else if (filterType === 'minor') {
+                const suits = ['權杖', '聖杯', '寶劍', '星幣'];
+                suits.forEach(suit => {
+                    let suitHTML = `<div class="suit-section"><h3 class="suit-header">${suit}牌組</h3><div class="dict-grid">`;
+                    Object.keys(tarotDictionary).forEach(cardName => {
+                        const data = tarotDictionary[cardName];
+                        if (data.type === 'minor' && data.suit === suit) {
+                            suitHTML += buildDictCardHTML(cardName, data);
+                        }
+                    });
+                    suitHTML += `</div></div>`;
+                    container.innerHTML += suitHTML;
+                });
+            }
+        }
+
+        function buildDictCardHTML(cardName, data) {
+            let displayIcon = data.type === 'minor' ? `${data.emoji} <span style="font-size: 1.5rem;">${data.num}</span>` : data.emoji;
+            return `
+                <div class="dict-card" onclick="openDictModal('${cardName}')">
+                    <div class="dict-icon" style="display: flex; align-items: center; justify-content: center; height: 100px; width: 100%; margin-bottom: 12px;">
+                        <img src="./images/${getCardImagePath(cardName)}" alt="${cardName}" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div style="display:none; align-items: center; justify-content: center; gap: 4px; font-size: 3rem; color: var(--accent-primary);">${displayIcon}</div>
+                    </div>
+                    <div class="dict-name" style="margin-top: auto;">${cardName}</div>
+                    <div class="dict-type">${data.type === 'major' ? '大阿爾卡那 ' + data.num : '小阿爾卡那'}</div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // 10. Modal Actions
+        // ==========================================
+        function openHistoryModal(record) {
+            const modalBody = document.getElementById('modal-content-body');
+            modalBody.innerHTML = `
+                <div style="font-size:0.9rem; color:var(--accent-gold); margin-bottom:10px; font-family:'Cinzel', serif;">${record.timestamp}</div>
+                <h2 style="margin-bottom:20px; color: var(--accent-primary); font-family:'Cinzel', serif;">Q: ${record.question}</h2>
+                <div style="display:flex; gap:10px; margin-bottom: 25px; flex-wrap:wrap;">
+                    ${record.drawnCards.map(c => `<div style="background:rgba(212, 175, 55, 0.1); padding:8px 16px; border-radius:4px; border:1px solid rgba(212, 175, 55, 0.3); color: var(--text-primary); font-size: 0.9rem;">${c}</div>`).join('')}
+                </div>
+                <div style="padding-top:25px; border-top:1px solid rgba(212, 175, 55, 0.2);">
+                    <strong style="color:var(--accent-primary); font-family:'Cinzel', serif; font-size:1.1rem; display:inline-block; margin-bottom: 10px;">塔羅師 ${record.readerName}：</strong><br>
+                    <div class="markdown-content">${record.readingText}</div>
+                </div>
+            `;
+            document.getElementById('detail-modal').classList.add('active');
+        }
+
+        function openDictModal(cardName) {
+            const data = tarotDictionary[cardName];
+            const modalBody = document.getElementById('modal-content-body');
+            
+            let displayIcon = data.type === 'minor' ? `${data.emoji} <span style="font-size: 2.5rem;">${data.num}</span>` : data.emoji;
+            
+            modalBody.innerHTML = `
+                <div style="text-align:center; margin-bottom:25px;">
+                    <img src="./images/${getCardImagePath(cardName)}" alt="${cardName}" style="max-height: 280px; border-radius: 6px; border: 1px solid var(--accent-primary); box-shadow: 0 10px 20px rgba(0,0,0,0.8);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div style="display:none; justify-content:center; align-items:center; gap: 10px; font-size:5rem; color: var(--accent-primary);">${displayIcon}</div>
+                </div>
+                <h2 style="text-align:center; color:var(--accent-primary); margin-bottom:5px; font-family: 'Cinzel', serif; font-size: 1.8rem;">${cardName}</h2>
+                <div style="text-align:center; color:var(--text-secondary); margin-bottom:30px; letter-spacing: 1px;">
+                    ${data.type === 'major' ? '大阿爾卡那 ' + data.num : '小阿爾卡那'}
+                </div>
+                <h3 style="color:var(--accent-primary); border-bottom: 1px solid rgba(212, 175, 55, 0.2); padding-bottom: 8px; margin-bottom: 15px;">正位含義</h3>
+                <p style="margin-bottom: 25px;">${data.up}</p>
+                <h3 style="color:var(--accent-primary); border-bottom: 1px solid rgba(212, 175, 55, 0.2); padding-bottom: 8px; margin-bottom: 15px;">逆位含義</h3>
+                <p>${data.rev}</p>
+            `;
+            document.getElementById('detail-modal').classList.add('active');
+        }
+
+        function openEditDiaryModal(id) {
+            currentEditDiaryId = id; const diaries = getDiaries(); const diary = diaries.find(d => d.id === id); if(!diary) return;
+            document.getElementById('edit-mood-text').value = diary.text || '';
+            const moodContainer = document.getElementById('edit-mood-selector');
+            moodContainer.querySelectorAll('.mood-btn').forEach(btn => {
+                if(btn.textContent.trim() === diary.mood) btn.classList.add('active'); else btn.classList.remove('active');
+            });
+            document.getElementById('edit-diary-modal').classList.add('active');
+        }
+
+        function saveEditedDiary() {
+            if(!currentEditDiaryId) return;
+            let diaries = getDiaries(); const index = diaries.findIndex(d => d.id === currentEditDiaryId);
+            if(index !== -1) {
+                const container = document.getElementById('edit-mood-selector');
+                const activeBtn = container.querySelector('.mood-btn.active');
+                diaries[index].mood = activeBtn ? activeBtn.textContent.trim() : '普通';
+                diaries[index].text = document.getElementById('edit-mood-text').value.trim();
+                localStorage.setItem('tarot_diaries', JSON.stringify(diaries));
+                renderDiary(); updateDashboard();
+            }
+            closeModal('edit-diary-modal', {target: document.getElementById('edit-diary-modal')});
+        }
+
+        function closeModal(modalId, event) {
+            if(event.target === document.getElementById(modalId) || event.target.classList.contains('btn-close') || (event.target.tagName.toLowerCase() === 'button' && event.target.classList.contains('outline-btn'))) {
+                document.getElementById(modalId).classList.remove('active');
+            }
+        }
+
+        // ==========================================
+        // 11. AI Selection Chat Logic
+        // ==========================================
+        function initAIList() {
+            const container = document.getElementById('ai-list-container');
+            container.innerHTML = aiReaders.map(r => `
+                <div class="reader-item ${r.id === state.selectedReaderId ? 'active' : ''}" onclick="selectAI('${r.id}')">
+                    <div class="radio-circle"></div>
+                    <div class="reader-pill">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; overflow: hidden; margin-right: 12px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1);">
+                            <img src="${r.img}" alt="${r.name}" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.2);">
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <span class="reader-name-text">${r.name}</span>
+                            <span class="reader-desc-text">${r.tags}</span>
+                        </div>
+                        <span class="reader-separator">|</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectAI(id) {
+            state.selectedReaderId = id; initAIList(); 
+            const r = aiReaders.find(x => x.id === id);
+            document.getElementById('current-ai-avatar').innerHTML = `<img src="${r.img}" alt="${r.name}" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.2);">`;
+            document.getElementById('current-ai-name').textContent = r.name;
+            document.getElementById('current-ai-tags').textContent = r.tags;
+            
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="message ai">
+                    <div class="avatar"><img src="${r.img}" alt="${r.name}" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.2);"></div>
+                    <div class="bubble">${r.intro}</div>
+                </div>
+            `;
+            document.getElementById('question-input').value = ''; updateInputState();
+        }
+
+        function updateInputState() {
+            const len = document.getElementById('question-input').value.trim().length;
+            document.getElementById('char-current').textContent = len;
+            const btn = document.getElementById('btn-send');
+            btn.disabled = len === 0;
+            if(len > 0) btn.classList.add('active'); else btn.classList.remove('active');
+        }
+
+        // ==========================================
+        // 12. Tarot Drawing Flow
+        // ==========================================
+        function goToDrawStep() {
+            state.question = document.getElementById('question-input').value.trim();
+            if(!state.question) return;
+            document.getElementById('step-choose').style.display = 'none'; document.getElementById('step-draw').style.display = 'block';
+            changeSpread(document.getElementById('spread-select'));
+        }
+
+        function changeSpread(el) {
+            const selectedId = el.value;
+            state.currentSpread = tarotSpreads.find(s => s.id === selectedId) || tarotSpreads[0];
+            document.getElementById('display-spread-name').textContent = state.currentSpread.name;
+            document.getElementById('display-spread-desc').textContent = state.currentSpread.desc;
+            document.getElementById('display-spread-count').textContent = `${state.currentSpread.count} 張牌`;
+            state.cardsLeft = state.currentSpread.count; state.drawnCards = [];
+            document.getElementById('draw-counter').textContent = state.cardsLeft; generateDeck();
+        }
+
+        function changeDeckType() {
+            state.deckType = document.getElementById('deck-type-select').value;
+            state.cardsLeft = state.currentSpread.count; state.drawnCards = [];
+            document.getElementById('draw-counter').textContent = state.cardsLeft; generateDeck();
+        }
+
+        function generateDeck() {
+            const wrapper = document.getElementById('deck-wrapper'); wrapper.innerHTML = ''; let deck = [];
+            if(state.deckType === 'major') deck = [...majorArcanaBase]; else if(state.deckType === 'minor') deck = [...minorArcanaBase]; else deck = [...majorArcanaBase, ...minorArcanaBase];
+            deck.sort(() => Math.random() - 0.5); state.availableCards = deck;
+            const row1 = document.createElement('div'); row1.className = 'deck-row';
+            const row2 = document.createElement('div'); row2.className = 'deck-row';
+            const midPoint = Math.ceil(deck.length / 2);
+            for(let i = 0; i < deck.length; i++) {
+                const c = document.createElement('div'); c.className = 'card'; c.onclick = function() { drawCard(this); };
+                if(i < midPoint) row1.appendChild(c); else row2.appendChild(c);
+            }
+            wrapper.appendChild(row1); wrapper.appendChild(row2);
+        }
+
+        function drawCard(el) {
+            if(state.cardsLeft <= 0 || el.classList.contains('drawn')) return;
+            el.classList.add('drawn'); state.cardsLeft--; document.getElementById('draw-counter').textContent = state.cardsLeft;
+            const baseCard = state.availableCards.pop(); const orientation = Math.random() > 0.5 ? '正位' : '逆位';
+            state.drawnCards.push(`${baseCard} (${orientation})`);
+            if(state.cardsLeft === 0) setTimeout(showResult, 800);
+        }
+
+        function toggleImmediateShow() {
+            state.showImmediately = !state.showImmediately;
+            const toggle = document.getElementById('show-toggle');
+            if (state.showImmediately) toggle.classList.remove('off'); else toggle.classList.add('off');
+        }
+
+        // ==========================================
+        // 13. Results & Gemini API Integration
+        // ==========================================
+        async function showResult() {
+            document.getElementById('step-draw').style.display = 'none'; document.getElementById('step-result').style.display = 'block';
+            const rc = document.getElementById('result-cards-container');
+            rc.innerHTML = state.drawnCards.map((c, index) => {
+                const baseName = c.split(' (')[0]; const isReversed = c.includes('逆位');
+                const transformStyle = isReversed ? 'transform: rotate(180deg);' : '';
+                const emoji = tarotDictionary[baseName] ? tarotDictionary[baseName].emoji : "🃏";
+                const positionName = state.currentSpread.positions[index] || `位置 ${index + 1}`;
+                let displayIcon = tarotDictionary[baseName] && tarotDictionary[baseName].type === 'minor' ? `${emoji}<br><span style="font-size: 1rem;">${tarotDictionary[baseName].num}</span>` : emoji;
+                return `
+                    <div style="display: flex; flex-direction: column; align-items: center; margin: 0 10px;">
+                        <div style="font-size: 0.8rem; color: var(--accent-primary); margin-bottom: 8px; font-weight: 500;">${positionName}</div>
+                        <div class="result-card" style="margin: 0; padding: 0; overflow: hidden; background: #000; border: 2px solid var(--accent-primary);">
+                            <img src="./images/${getCardImagePath(baseName)}" alt="${baseName}" style="width: 100%; height: 100%; object-fit: cover; ${transformStyle}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div style="display:none; width: 100%; height: 100%; background: linear-gradient(135deg, #111, #000); flex-direction: column; justify-content: center; align-items: center; font-size: 2.5rem; color: var(--accent-primary); ${transformStyle}">${displayIcon}</div>
+                        </div>
+                        <span style="font-size: 0.85rem; margin-top: 15px; color: #fff; background: rgba(212, 175, 55, 0.15); padding: 6px 16px; border-radius: 4px; border: 1px solid rgba(212, 175, 55, 0.4); box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-family: 'Noto Sans TC', serif;">${c}</span>
+                    </div>`;
+            }).join('');
+
+            const reader = aiReaders.find(r => r.id === state.selectedReaderId);
+            const rt = document.getElementById('reading-text');
+            rt.innerHTML = "<span style='color: var(--accent-primary); font-family: Cinzel, serif;'>✦ 正在連結星體能量... 請稍候。</span>";
+
+            try {
+                const response = await mockOrRealGeminiCall(reader, state.question, state.drawnCards, state.currentSpread);
+                rt.innerHTML = formatSimpleMarkdown(response);
+                saveReadingToHistory(reader.name, state.question, state.drawnCards, rt.innerHTML, state.currentSpread.name, state.currentSpread.desc);
+            } catch (err) {
+                // 將真實錯誤訊息直接印在畫面上，方便除錯
+                rt.innerHTML = `<span style='color: var(--danger);'>解讀失敗：${err.message}</span>`;
+            }
+        }
+
+        async function mockOrRealGeminiCall(reader, q, cards, spread) {
+            const apiKey = "AQ.Ab8RN6KwqZ4evBleaHbGsmJu4gVY5X9Iy0bQHyeMNMR3wDcR0w"; 
+            
+            let cardsData = cards.map((cardStr, index) => {
+                const isReversed = cardStr.includes('逆位'); const cardName = cardStr.split(' (')[0];
+                const posName = spread.positions[index] || `位置 ${index + 1}`;
+                return { position: posName, card: cardName, is_reversed: isReversed };
+            });
+
+            const userPromptObj = { user_query: q, selected_spread: spread.name, cards_drawn: cardsData };
+            const userPrompt = JSON.stringify(userPromptObj, null, 2);
+
+            if(!apiKey) return `*(這是一個測試的佔位符回覆)*`;
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            const payload = { 
+                contents: [{ parts: [{ text: userPrompt }] }], 
+                systemInstruction: { parts: [{ text: globalTarotRules + '\n\n' + reader.systemPrompt }] },
+                generationConfig: { maxOutputTokens: 2500, temperature: 0.7 } // 維持 2500 Tokens
+            };
+            
+            try {
+                const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const data = await res.json();
+                
+                // 檢查 API 是否回傳錯誤碼
+                if (!res.ok) {
+                    throw new Error(data.error?.message || `API 請求失敗 (狀態碼: ${res.status})`);
+                }
+                
+                // 嚴謹檢查是否有正常的生成內容，防止截斷或安全過濾造成的空值
+                if (data.candidates && data.candidates.length > 0 && data.candidates[0].content) {
+                    return data.candidates[0].content.parts[0].text;
+                } else {
+                    console.error("API 回傳異常結構:", data);
+                    throw new Error("模型回傳了無法解析的空資料，可能是因為觸發安全過濾或模型超載。請重新抽牌再試一次。");
+                }
+            } catch (error) {
+                console.error("呼叫 Gemini API 時發生錯誤:", error);
+                throw error;
+            }
+        }
+
+        function resetReadingFlow() {
+            document.getElementById('step-result').style.display = 'none'; document.getElementById('step-choose').style.display = 'block';
+            document.getElementById('question-input').value = ''; updateInputState();
+            const wrapper = document.getElementById('deck-wrapper'); if(wrapper) wrapper.scrollTop = 0;
+        }
+    </script>
+</body>
+</html>
