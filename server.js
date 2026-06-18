@@ -114,7 +114,7 @@ app.post('/api/tarot-reading', async (req, res) => {
             }],
             generationConfig: {
                 temperature: 0.7,
-                maxOutputTokens: 4000,
+                maxOutputTokens: 3000,
             }
         };
 
